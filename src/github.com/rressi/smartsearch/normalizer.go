@@ -1,13 +1,13 @@
 package smartsearch
 
 import (
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
-	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 	"io"
-	"unicode"
+    "unicode"
+	"golang.org/x/text/language"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/runes"
 )
 
 func ReadNormalized(r io.Reader) io.Reader {
@@ -28,10 +28,10 @@ func ReadNormalized(r io.Reader) io.Reader {
 	removeRepeatedSpaces := func(r rune) bool {
 		if r == rune(' ') {
 			spaceCount += 1
-			return spaceCount == 1
+			return spaceCount > 1
 		} else {
 			spaceCount = 0
-			return true
+			return false
 		}
 	}
 
@@ -39,8 +39,9 @@ func ReadNormalized(r io.Reader) io.Reader {
 		norm.NFD,
 		transform.RemoveFunc(removeMn),
 		norm.NFC,
-		cases.Upper(language.English),
+		cases.Lower(language.English),
 		replaceInvalidChars,
 		transform.RemoveFunc(removeRepeatedSpaces))
+
 	return transform.NewReader(r, t)
 }
