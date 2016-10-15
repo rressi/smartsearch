@@ -1,13 +1,13 @@
 package smartsearch
 
 import (
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 	"io"
-    "unicode"
-	"golang.org/x/text/language"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/runes"
+	"unicode"
 )
 
 func ReadNormalized(r io.Reader) io.Reader {

@@ -1,9 +1,9 @@
 package smartsearch
 
 import (
-	"testing"
 	"bytes"
 	"io/ioutil"
+	"testing"
 )
 
 func TestNormalizerBase(t *testing.T) {
