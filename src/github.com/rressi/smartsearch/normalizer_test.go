@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestNormalizerBase(t *testing.T) {
+func TestNormalizer_Base(t *testing.T) {
 
 	buf := bytes.NewBufferString("This ìs ä fÄncy,  string")
 	reader := ReadNormalized(buf)
