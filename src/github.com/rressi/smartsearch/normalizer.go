@@ -24,7 +24,7 @@ func ReadNormalized(r io.Reader) io.Reader {
 		}
 	})
 
-	spaceCount := 0
+	spaceCount := 1
 	removeRepeatedSpaces := func(r rune) bool {
 		if r == rune(' ') {
 			spaceCount += 1

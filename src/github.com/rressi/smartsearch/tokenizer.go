@@ -7,9 +7,20 @@ import (
 )
 
 func Tokenize(query string) (tokens []string) {
+
+	if len(query) == 0 {
+		return
+	}
+
 	var buf bytes.Buffer
 	buf.ReadFrom(ReadNormalized(bytes.NewBufferString(query)))
-	tokens = strings.Split(buf.String(), " ")
+
+	for _, token := range strings.Split(buf.String(), " ") {
+		if len(token) > 0 {
+			tokens = append(tokens, token)
+		}
+	}
 	sort.Strings(tokens)
-	return tokens
+
+	return
 }
