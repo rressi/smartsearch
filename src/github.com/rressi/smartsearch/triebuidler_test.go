@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTrieBuilderEmpty(t *testing.T) {
+func TestTrieBuilder_Empty(t *testing.T) {
 
 	builder := NewTrieBuilder()
 
@@ -20,7 +20,7 @@ func TestTrieBuilderEmpty(t *testing.T) {
 	}
 }
 
-func TestTrieBuilderVoidTerm(t *testing.T) {
+func TestTrieBuilder_VoidTerm(t *testing.T) {
 
 	builder := NewTrieBuilder()
 	builder.Add(1, "")
@@ -39,7 +39,7 @@ func TestTrieBuilderVoidTerm(t *testing.T) {
 	}
 }
 
-func TestTrieBuilderBase(t *testing.T) {
+func TestTrieBuilder_Base(t *testing.T) {
 
 	builder := NewTrieBuilder()
 	builder.Add(1, "A")

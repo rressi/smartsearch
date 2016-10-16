@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 )
 
@@ -20,8 +21,7 @@ type Node struct {
 	edgesOffset    int
 }
 
-var OutOfBounds = errors.New("Out of bound")
-var EOF = errors.New("Invalid mode")
+var OutOfBounds = errors.New("Offset out of bound")
 
 type TrieReader struct {
 	bytes              []byte
@@ -31,9 +31,10 @@ type TrieReader struct {
 	edgesOffset        int
 	childrenBaseOffset int
 	posting            int
+	rune_              int
 }
 
-func NewFromMemory(bytes_ []byte) (trieReader *TrieReader, node Node,
+func NewTrieReader(bytes_ []byte) (trieReader *TrieReader, node Node,
 	err error) {
 	trieReader = new(TrieReader)
 	trieReader.bytes = bytes_
@@ -59,6 +60,7 @@ func (t *TrieReader) clear() {
 	t.childrenBaseOffset = 0
 	t.edgesOffset = 0
 	t.posting = 0
+	t.rune_ = 0
 }
 
 func (trieReader *TrieReader) seek(offset int) (err error) {
@@ -82,7 +84,7 @@ func (t *TrieReader) readInt() (value int, err error) {
 func (t *TrieReader) readNode() (node Node, err error) {
 
 	if t.reader.Len() == 0 {
-		err = EOF
+		err = io.EOF
 		return
 	}
 
@@ -105,41 +107,71 @@ func (t *TrieReader) readNode() (node Node, err error) {
 	}
 
 	var sizeOfPosting int
-	sizeOfPosting, err = t.readInt()
-	if err != nil {
-		return
+	if t.postingsLeft > 0 {
+		sizeOfPosting, err = t.readInt()
+		if err != nil {
+			return
+		}
 	}
 
 	postingsOffset := t.tell()
 	t.edgesOffset = postingsOffset + sizeOfPosting
 	t.childrenBaseOffset = 0
 	t.posting = 0
+	t.rune_ = 0
+
+	// When there are no postings we need to prepare our machine to read nodes:
+	err = t.testEndPostings()
 
 	node = Node{t.postingsLeft, t.edgesLeft, postingsOffset, t.edgesOffset}
 	return
 }
 
+func (t *TrieReader) JumpNode(node Node) (err error) {
+
+	err = t.seek(node.postingsOffset)
+	if err != nil {
+		t.clear()
+		return
+	}
+
+	t.postingsLeft = node.NumPostings
+	t.edgesLeft = node.NumEdges
+	t.edgesOffset = node.edgesOffset
+	t.childrenBaseOffset = 0
+	t.posting = 0
+	t.rune_ = 0
+
+	// When there are no postings we need to prepare our machine to read nodes:
+	err = t.testEndPostings()
+
+	return
+}
+
 func (t *TrieReader) testEndPostings() (err error) {
-	if t.postingsLeft == 0 {
+
+	// Just after reading the last posting, we need to prepare our state
+	// machine to read edges:
+	if t.postingsLeft == 0 && t.childrenBaseOffset == 0 && t.edgesLeft > 0 {
 
 		var sizeOfEdges int
 		sizeOfEdges, err = t.readInt()
 		if err != nil {
 			err = fmt.Errorf("TrieReader.testEndPostings: %v", err)
+			t.clear()
 			return
 		}
 
-		t.postingsLeft = 0
-		t.edgesOffset = 0
 		t.childrenBaseOffset = t.tell() + sizeOfEdges
 	}
+
 	return
 }
 
 func (t *TrieReader) ReadPosting() (posting int, err error) {
 
 	if t.postingsLeft == 0 {
-		err = EOF
+		err = io.EOF
 		return
 	}
 
@@ -159,23 +191,37 @@ func (t *TrieReader) ReadPosting() (posting int, err error) {
 
 	t.posting += int(increment)
 	t.postingsLeft--
-	posting = t.posting
 
-	t.testEndPostings()
+	// When there are no postings we need to prepare our machine to read nodes:
+	err = t.testEndPostings()
+
+	posting = t.posting
 	return
 }
 
 func (t *TrieReader) ReadAllPostings() (postings []int, err error) {
 
-	postings = make([]int, t.postingsLeft)
-	var i int
-	for t.postingsLeft > 0 {
-		postings[i], err = t.ReadPosting()
+	if t.postingsLeft == 0 {
+		err = io.EOF
+		return
+	}
+
+	// Any further failure would reset our state machine:
+	defer func() {
 		if err != nil {
-			break
+			t.clear()
+			err = fmt.Errorf("TrieReader.ReadAllPostings: %v", err)
 		}
-		i++
-		t.postingsLeft--
+	}()
+
+	num := t.postingsLeft
+	postings_ := make([]int, t.postingsLeft)
+	for i := 0; err == nil && i < num; i++ {
+		postings_[i], err = t.ReadPosting()
+	}
+
+	if err == nil {
+		postings = postings_
 	}
 
 	return
@@ -185,19 +231,19 @@ func (t *TrieReader) ReadAllPostingsRecursive() (postings []int,
 	err error) {
 
 	if t.postingsLeft == 0 {
-		err = EOF
+		err = io.EOF
 		return
 	}
 
 	// Any further failure would reset our state machine:
 	defer func() {
-		if err != nil && err != EOF {
+		if err != nil && err != io.EOF {
 			t.clear()
 			err = fmt.Errorf("TrieReader.ReadAllPostingsRecursive: %v", err)
 		}
 	}()
 
-	postings = make([]int, 0)
+	postings_ := make([]int, 0)
 
 	// Prepares a queue for a breath-first traversal of the trie:
 	workingQueue := make([]*TrieReader, 1)
@@ -215,7 +261,7 @@ func (t *TrieReader) ReadAllPostingsRecursive() (postings []int,
 			if err != nil {
 				return
 			}
-			postings = append(postings, posting)
+			postings_ = append(postings_, posting)
 		}
 
 		// Iterates through all the edges and queue spawn readers to iterate
@@ -227,7 +273,7 @@ func (t *TrieReader) ReadAllPostingsRecursive() (postings []int,
 				return
 			}
 
-			// Spawn the current trie and jumps it to the edge's target node
+			// Spawn the current reader and jumps it to the edge's target node
 			childTrie := new(TrieReader)
 			*childTrie = *currentReader
 			_, err = childTrie.EnterNode(edge)
@@ -240,25 +286,25 @@ func (t *TrieReader) ReadAllPostingsRecursive() (postings []int,
 	}
 
 	// Sorts and deduplicates all collected postings:
-	if len(postings) > 1 {
-		sort.Ints(postings)
+	if len(postings_) > 1 {
+		sort.Ints(postings_)
 		var nextUnique int
-		for i := 1; i < len(postings); i++ {
-			if postings[nextUnique] != postings[i] {
+		for i := 1; i < len(postings_); i++ {
+			if postings_[nextUnique] != postings_[i] {
 				nextUnique++
-				postings[nextUnique] = postings[i]
+				postings_[nextUnique] = postings_[i]
 			}
 		}
-		postings = postings[:nextUnique+1]
+		postings_ = postings_[:nextUnique+1]
 	}
 
+	postings = postings_
 	return
 }
 
-func (t *TrieReader) SkipPostings() (err error) {
+func (t *TrieReader) skipPostings() (err error) {
 
-	if t.edgesOffset == 0 {
-		err = EOF
+	if t.postingsLeft == 0 {
 		return
 	}
 
@@ -266,7 +312,7 @@ func (t *TrieReader) SkipPostings() (err error) {
 	defer func() {
 		if err != nil {
 			t.clear()
-			err = fmt.Errorf("TrieReader.SkipPostings: %v", err)
+			err = fmt.Errorf("TrieReader.skipPostings: %v", err)
 		}
 	}()
 
@@ -283,7 +329,7 @@ func (t *TrieReader) SkipPostings() (err error) {
 func (t *TrieReader) ReadEdge() (edge Edge, err error) {
 
 	if t.edgesLeft == 0 {
-		err = EOF
+		err = io.EOF
 		return
 	}
 
@@ -296,17 +342,18 @@ func (t *TrieReader) ReadEdge() (edge Edge, err error) {
 	}()
 
 	if t.postingsLeft > 0 {
-		err = t.SkipPostings()
+		err = t.skipPostings()
 		if err != nil {
 			return
 		}
 	}
 
-	var rune_ int
-	rune_, err = t.readInt()
+	var runeIncrement int
+	runeIncrement, err = t.readInt()
 	if err != nil {
 		return
 	}
+	t.rune_ += runeIncrement
 
 	var sizeOfChildrenNode int
 	sizeOfChildrenNode, err = t.readInt()
@@ -314,36 +361,49 @@ func (t *TrieReader) ReadEdge() (edge Edge, err error) {
 		return
 	}
 
-	edge = Edge{rune(rune_), t.childrenBaseOffset}
+	edge = Edge{rune(t.rune_), t.childrenBaseOffset}
 	t.childrenBaseOffset += sizeOfChildrenNode
 	t.edgesLeft--
+	return
+}
+
+func (t *TrieReader) ReadAllEdges() (edges []Edge, err error) {
+
 	if t.edgesLeft == 0 {
-		err = EOF
-	}
-	return
-}
-
-func (trieReader *TrieReader) ReadAllEdges() (edges []Edge, err error) {
-	edges = make([]Edge, trieReader.edgesLeft)
-	var i int
-	for err == nil && trieReader.edgesLeft > 0 {
-		edges[i], err = trieReader.ReadEdge()
-		i++
-	}
-	if err != nil && err != EOF {
-		err = fmt.Errorf("TrieReader.ReadAllEdges: %v", err)
-	}
-	return
-}
-
-func (source *TrieReader) EnterNode(edge Edge) (node Node, err error) {
-
-	err = source.seek(edge.nodeOffset)
-	if err != nil {
-		err = fmt.Errorf("TrieReader.EnterNode: %v", err)
+		err = io.EOF
 		return
 	}
 
-	node, err = source.readNode()
+	edges_ := make([]Edge, t.edgesLeft)
+	var i int
+	for err == nil && t.edgesLeft > 0 {
+		edges_[i], err = t.ReadEdge()
+		i++
+	}
+	if err != nil {
+		err = fmt.Errorf("TrieReader.ReadAllEdges: %v", err)
+		return
+	}
+
+	edges = edges_
+	return
+}
+
+func (t *TrieReader) EnterNode(edge Edge) (node Node, err error) {
+
+	// Any further failure will reset our state machine:
+	defer func() {
+		if err != nil {
+			t.clear()
+			err = fmt.Errorf("TrieReader.EnterNode: %v", err)
+		}
+	}()
+
+	err = t.seek(edge.nodeOffset)
+	if err != nil {
+		return
+	}
+
+	node, err = t.readNode()
 	return
 }
