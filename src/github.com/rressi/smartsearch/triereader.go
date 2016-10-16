@@ -421,10 +421,13 @@ func (t *TrieReader) Match(term string) (node Node, err error) {
 	}()
 
 	var node_ Node
-	for _, rune_ := range term {
+	for _, targetRune := range term {
 		var edge Edge
-		for err == nil && edge.Rune != rune_ {
+		for err == nil && edge.Rune < targetRune {
 			edge, err = t.ReadEdge()
+		}
+		if err == nil && edge.Rune != targetRune {
+			err = io.EOF // Not found!
 		}
 		if err != nil {
 			return // Edge with the given rune have not found.

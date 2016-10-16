@@ -2,9 +2,9 @@ package smartsearch
 
 import (
 	"bytes"
+	"io"
 	"reflect"
 	"testing"
-	"io"
 )
 
 func TestIndexBuilder_AddDocument(t *testing.T) {
