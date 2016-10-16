@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 )
 
 type IndexBuilder interface {
@@ -36,43 +37,52 @@ func (b *indexBuilderImpl) ScanJsonStream(reader io.Reader, idField string,
 	contentFields []string) (err error) {
 
 	// Any further failure will reset our state machine:
+	line := 0
 	defer func() {
 		if err == io.EOF {
 			err = nil
 		} else if err != nil {
-			err = fmt.Errorf("IndexBuilder.AddJsonDocuments: %v", err)
+			err = fmt.Errorf("IndexBuilder.ScanJsonStream, line %d: %v",
+				line, err)
 		}
 	}()
 
 	scanner := bufio.NewScanner(reader)
-	line := 0
 	for scanner.Scan() {
+		line += 1
+		if len(scanner.Bytes()) == 0 {
+			continue // Ignores empty lines.
+		}
+
 		var datum map[string]interface{}
-		err = json.Unmarshal(scanner.Bytes(), datum)
+		err = json.Unmarshal(scanner.Bytes(), &datum)
 		if err != nil {
 			return
 		}
-		line += 1
 
-		id, ok := datum[idField]
+		id_, ok := datum[idField]
 		if !ok {
 			err = fmt.Errorf("document at line %v does not have ID field "+
 				"'%v' defined", line, idField)
 			return
 		}
 
+		var id int
+		id, err = strconv.Atoi(fmt.Sprint(id_))
+		if err != nil {
+			return
+		}
+
 		for _, field := range contentFields {
-			content, ok := datum[field]
+			content_, ok := datum[field]
 			if ok {
-				fmt.Printf("[%v] -> [%v]", id, content)
-				// err = b.AddDocument(id, content)
+				content := fmt.Sprint(content_)
+				err = b.AddDocument(id, content)
 				if err != nil {
 					return
 				}
 			}
 		}
-
-		fmt.Print(datum)
 	}
 
 	return
