@@ -64,7 +64,7 @@ func (b *indexBuilderImpl) ScanJsonStream(reader io.Reader, idField string,
 		for _, field := range contentFields {
 			content, ok := datum[field]
 			if ok {
-				fmt.Println("{%v} -> [%v]", id, content)
+				fmt.Printf("[%v] -> [%v]", id, content)
 				// err = b.AddDocument(id, content)
 				if err != nil {
 					return
