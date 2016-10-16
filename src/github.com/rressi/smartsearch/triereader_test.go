@@ -206,3 +206,88 @@ func TestTrieReader_Base(t *testing.T) {
 	}
 
 }
+
+func TestTrieReader_Match(t *testing.T) {
+
+	var err error
+	var source_bytes []byte
+	var reader *TrieReader
+	var terms []string
+	var expected_matches []Node
+
+	// builder := NewTrieBuilder()
+	source_bytes = []byte{0, 0}
+	terms = []string{"", "A", "B", "ABC"}
+	expected_matches = []Node{
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0}}
+	reader, _, err = NewTrieReader(source_bytes)
+	if err != nil {
+		t.Errorf("Cannot create trie reader from bytes: %v", source_bytes)
+	}
+	for i, term := range terms {
+		node, err := reader.Match(term)
+		if err != nil {
+			t.Errorf("Cannot match term '%v': %v", term, source_bytes)
+		} else if node != expected_matches[i] {
+			t.Errorf("Unexpected match: term='%v' node[%d]=%v", term, i, node)
+		}
+	}
+
+	// builder := NewTrieBuilder()
+	// builder.Add(1, "A")
+	// builder.Add(2, "A")
+	// builder.Add(1, "B")
+	// builder.Add(2, "B")
+	source_bytes = []byte{0, 2, 4, 65, 5, 1, 5, 2, 0, 2, 1, 1, 2, 0, 2, 1, 1}
+	terms = []string{"", "A", "B", "ABC"}
+	expected_matches = []Node{
+		{0, 0, 0, 0},
+		{2, 0, 10, 12},
+		{2, 0, 15, 17},
+		{0, 0, 0, 0}}
+	reader, _, err = NewTrieReader(source_bytes)
+	if err != nil {
+		t.Errorf("Cannot create trie reader from bytes: %v", source_bytes)
+	}
+	for i, term := range terms {
+		reader.Reset()
+		node, err := reader.Match(term)
+		if err != nil {
+			t.Errorf("Cannot match term '%v': %v", term, source_bytes)
+		} else if node != expected_matches[i] {
+			t.Errorf("Unexpected match: term='%v' node[%d]=%v", term, i, node)
+		}
+	}
+
+	// builder := NewTrieBuilder()
+	// builder.Add(1, "ABC")
+	// builder.Add(2, "BCA")
+	// builder.Add(3, "CAB")
+	source_bytes = []byte{0, 3, 6, 65, 14, 1, 14, 1, 14, 0, 1, 2, 66, 9, 0, 1,
+		2, 67, 4, 1, 0, 1, 1, 0, 1, 2, 67, 9, 0, 1, 2, 65, 4, 1, 0, 1, 2, 0,
+		1, 2, 65, 9, 0, 1, 2, 66, 4, 1, 0, 1, 3}
+	terms = []string{"", "A", "BC", "CAB", "AA", "CBA"}
+	expected_matches = []Node{
+		{0, 0, 0, 0},
+		{0, 1, 11, 11},
+		{0, 1, 30, 30},
+		{1, 0, 50, 51},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0}}
+	reader, _, err = NewTrieReader(source_bytes)
+	if err != nil {
+		t.Errorf("Cannot create trie reader from bytes: %v", source_bytes)
+	}
+	for i, term := range terms {
+		reader.Reset()
+		node, err := reader.Match(term)
+		if err != nil {
+			t.Errorf("Cannot match term '%v': %v", term, source_bytes)
+		} else if node != expected_matches[i] {
+			t.Errorf("Unexpected match: term='%v' node[%d]=%v", term, i, node)
+		}
+	}
+}

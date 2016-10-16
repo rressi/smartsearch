@@ -407,3 +407,35 @@ func (t *TrieReader) EnterNode(edge Edge) (node Node, err error) {
 	node, err = t.readNode()
 	return
 }
+
+func (t *TrieReader) Match(term string) (node Node, err error) {
+
+	// Handles post-condition:
+	defer func() {
+		if err == io.EOF {
+			err = nil // No match have been found.
+		} else if err != nil {
+			t.clear()
+			err = fmt.Errorf("TrieReader.Match('%v'): %v", term, err)
+		}
+	}()
+
+	var node_ Node
+	for _, rune_ := range term {
+		var edge Edge
+		for err == nil && edge.Rune != rune_ {
+			edge, err = t.ReadEdge()
+		}
+		if err != nil {
+			return // Edge with the given rune have not found.
+		}
+
+		node_, err = t.EnterNode(edge)
+		if err != nil {
+			return // Edge with the given rune have not found.
+		}
+	}
+
+	node = node_
+	return
+}
