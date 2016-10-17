@@ -1,4 +1,5 @@
 #!/bin/sh
 
 export GOPATH=$(pwd)
-go get golang.org/x/text
+go build src/makeindex.go
+
