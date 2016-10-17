@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
 )
 
 type Edge struct {
@@ -285,20 +284,7 @@ func (t *TrieReader) ReadAllPostingsRecursive() (postings []int,
 		}
 	}
 
-	// Sorts and deduplicates all collected postings:
-	if len(postings_) > 1 {
-		sort.Ints(postings_)
-		var nextUnique int
-		for i := 1; i < len(postings_); i++ {
-			if postings_[nextUnique] != postings_[i] {
-				nextUnique++
-				postings_[nextUnique] = postings_[i]
-			}
-		}
-		postings_ = postings_[:nextUnique+1]
-	}
-
-	postings = postings_
+	postings = SortDedupPostings(postings_)
 	return
 }
 
