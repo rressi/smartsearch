@@ -81,5 +81,6 @@ func (idx *indexImpl) Search(query string) (postings []int, err error) {
 		}
 	}
 
+	postings = mergedPostings
 	return
 }
