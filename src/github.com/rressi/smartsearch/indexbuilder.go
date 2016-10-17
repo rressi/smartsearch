@@ -88,6 +88,6 @@ func (b *indexBuilderImpl) ScanJsonStream(reader io.Reader, idField string,
 	return
 }
 
-func (b *indexBuilderImpl) Dump(dst io.Writer) error {
-	return b.trie.Dump(dst)
+func (b *indexBuilderImpl) Dump(writer io.Writer) error {
+	return b.trie.Dump(writer)
 }
