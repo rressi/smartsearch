@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"github.com/rressi/smartsearch"
@@ -24,26 +25,26 @@ func main() {
 		return
 	}
 
-	run(*inputFile, *outputFile, *jsonId, *jsonContents)
+	runMakeIndex(*inputFile, *outputFile, *jsonId, *jsonContents)
 }
 
-func run(
+func runMakeIndex(
 	inputFile string,
 	outputFile string,
 	jsonId string,
 	jsonContents string) {
 
 	// Handles feedback:
-	fmt.Printf("input file: %v\n", inputFile)
-	fmt.Printf("output file: %v\n", outputFile)
-	fmt.Printf("json id: %v\n", jsonId)
-	fmt.Printf("json contents: %v\n", jsonContents)
+	fmt.Fprintf(os.Stderr, "input file: %v\n", inputFile)
+	fmt.Fprintf(os.Stderr, "output file: %v\n", outputFile)
+	fmt.Fprintf(os.Stderr, "json id: %v\n", jsonId)
+	fmt.Fprintf(os.Stderr, "json contents: %v\n", jsonContents)
 	var err error
 	defer func() {
 		if err == nil {
-			fmt.Print("Done.\n")
+			fmt.Fprint(os.Stderr, "Done.\n")
 		} else {
-			fmt.Printf("Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 	}()
 
@@ -57,6 +58,9 @@ func run(
 			return
 		}
 	}
+
+	// We prefer to have buffered I/0:
+	input = bufio.NewReader(input)
 
 	// Indexes all the documents:
 	builder := smartsearch.NewIndexBuilder()
@@ -76,6 +80,9 @@ func run(
 			return
 		}
 	}
+
+	// We prefer to have buffered I/0:
+	output = bufio.NewWriter(output)
 
 	// Serializes the index:
 	err = builder.Dump(output)
