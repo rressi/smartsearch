@@ -3,8 +3,8 @@
 It is a tool that takes JSON streams like the following:
 
 ```json
-{"i"=10, "t"="Title to beindexed", "c"="Some content to be indexed..."}
-{"i"=2, "t"="Another title", "c"="More content..."}
+{"i":10, "t":"Title to beindexed", "c":"Some content to be indexed..."}
+{"i":2, "t":"Another title", "c":"More content..."}
 ...
 ```
 And is able to generate one single index if executed in this way:
