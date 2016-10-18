@@ -13,79 +13,71 @@ func main() {
 	var err error
 
 	flags := flag.NewFlagSet("makeindex", flag.ExitOnError)
-	jsonId := flags.String("id", "id", "Json attribute for doc ids")
-	jsonContent := flags.String("content", "content",
+	inputFile := flags.String("i", "-", "Input file")
+	outputFile := flags.String("o", "-", "Output file")
+	jsonId := flags.String("id", "id", "Json attribute for document ids")
+	jsonContents := flags.String("content", "content",
 		"Json attributes to be indexed, comma separated")
-	sourceFiles := flags.String("source", "-", "Soure file(s) to be read, use"+
-		" comma as a separator")
-	outputFile := flags.String("o", "-", "Output file.")
 	err = flags.Parse(os.Args[1:])
 	if err == flag.ErrHelp {
 		flag.Usage()
 		return
 	}
 
-	fmt.Printf("source file: %v\n", *sourceFiles)
-	fmt.Printf("json id: %v\n", *jsonId)
-	fmt.Printf("json content: %v\n", *jsonContent)
-	fmt.Printf("output file: %v\n", *outputFile)
-
-	run(*sourceFiles, *outputFile, *jsonId, *jsonContent)
+	run(*inputFile, *outputFile, *jsonId, *jsonContents)
 }
 
 func run(
-	sourceFiles string,
-	outputFIle string,
+	inputFile string,
+	outputFile string,
 	jsonId string,
-	jsonContent string) {
+	jsonContents string) {
 
-	// Handles errors:
-
+	// Handles feedback:
+	fmt.Printf("input file: %v\n", inputFile)
+	fmt.Printf("output file: %v\n", outputFile)
+	fmt.Printf("json id: %v\n", jsonId)
+	fmt.Printf("json contents: %v\n", jsonContents)
 	var err error
 	defer func() {
-		if err != nil {
+		if err == nil {
+			fmt.Print("Done.\n")
+		} else {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}()
 
-	// Reads all the source files:
-
-	builder := smartsearch.NewIndexBuilder()
-	if sourceFiles == "-" {
-		err = builder.ScanJsonStream(os.Stdin, jsonId,
-			strings.Split(jsonContent, ","))
+	// Selects the input:
+	var input io.Reader
+	if inputFile == "-" {
+		input = os.Stdin
+	} else {
+		input, err = os.Open(inputFile)
 		if err != nil {
 			return
 		}
-	} else {
-		for _, sourceFile := range strings.Split(sourceFiles, ",") {
-
-			var source io.Reader
-			source, err = os.Open(sourceFile)
-			if err != nil {
-				return
-			}
-
-			err = builder.ScanJsonStream(source, jsonId,
-				strings.Split(jsonContent, ","))
-			if err != nil {
-				return
-			}
-		}
 	}
 
-	// Produces the output:
+	// Indexes all the documents:
+	builder := smartsearch.NewIndexBuilder()
+	jsonContentsSplit := strings.Split(jsonContents, ",")
+	err = builder.ScanJsonStream(input, jsonId, jsonContentsSplit)
+	if err != nil {
+		return
+	}
 
+	// Selects the output:
 	var output io.Writer
-	if outputFIle == "-" {
+	if outputFile == "-" {
 		output = os.Stdout
 	} else {
-		output, err = os.Create(outputFIle)
+		output, err = os.Create(outputFile)
 		if err != nil {
 			return
 		}
 	}
 
+	// Serializes the index:
 	err = builder.Dump(output)
 	if err != nil {
 		return
