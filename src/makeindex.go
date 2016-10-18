@@ -53,39 +53,48 @@ func runMakeIndex(
 	if inputFile == "-" {
 		input = os.Stdin
 	} else {
-		input, err = os.Open(inputFile)
+		var fileInput io.ReadCloser
+		fileInput, err = os.Open(inputFile)
 		if err != nil {
 			return
 		}
+		defer fileInput.Close()
+		input = fileInput
 	}
 
 	// We prefer to have buffered I/0:
-	input = bufio.NewReader(input)
+	bufInput := bufio.NewReader(input)
 
 	// Indexes all the documents:
+	var numLines int
 	builder := smartsearch.NewIndexBuilder()
 	jsonContentsSplit := strings.Split(jsonContents, ",")
-	err = builder.ScanJsonStream(input, jsonId, jsonContentsSplit)
+	numLines, err = builder.ScanJsonStream(bufInput, jsonId, jsonContentsSplit)
 	if err != nil {
 		return
 	}
+	fmt.Fprintf(os.Stderr, "lines indexed: %v\n", numLines)
 
 	// Selects the output:
 	var output io.Writer
 	if outputFile == "-" {
 		output = os.Stdout
 	} else {
-		output, err = os.Create(outputFile)
+		var outputF io.WriteCloser
+		outputF, err = os.Create(outputFile)
 		if err != nil {
 			return
 		}
+		defer outputF.Close()
+		output = outputF
 	}
 
 	// We prefer to have buffered I/0:
-	output = bufio.NewWriter(output)
+	bufOutput := bufio.NewWriter(output)
+	defer bufOutput.Flush()
 
 	// Serializes the index:
-	err = builder.Dump(output)
+	err = builder.Dump(bufOutput)
 	if err != nil {
 		return
 	}

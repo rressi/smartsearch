@@ -1,9 +1,9 @@
 package smartsearch
 
 import (
-	"testing"
 	"bytes"
 	"reflect"
+	"testing"
 )
 
 func TestIndex_Base(t *testing.T) {

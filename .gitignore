@@ -1,5 +1,6 @@
 .idea/
 /pkg/
 /src/golang.org/
+/test/tmp/
 
 *.exe

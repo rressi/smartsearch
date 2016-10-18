@@ -84,9 +84,12 @@ func TestIndexBuilder_ScanJsonStream(t *testing.T) {
 		t.Error("Cannot create index builder")
 	}
 
-	err = builder.ScanJsonStream(source, id_field, content_fields)
+	var numLines int
+	numLines, err = builder.ScanJsonStream(source, id_field, content_fields)
 	if err != nil {
 		t.Errorf("Failure while scanning json stream: %v", err)
+	} else if numLines != 4 {
+		t.Errorf("Unexpected number of lines: %v", numLines)
 	}
 
 	indexBytes := new(bytes.Buffer)

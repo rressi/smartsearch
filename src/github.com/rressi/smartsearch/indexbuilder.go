@@ -11,7 +11,7 @@ import (
 type IndexBuilder interface {
 	AddDocument(id int, content string) error
 	ScanJsonStream(reader io.Reader, idField string,
-		contentFields []string) (err error)
+		contentFields []string) (numLines int, err error)
 	Dump(writer io.Writer) error
 }
 
@@ -34,25 +34,24 @@ func (b *indexBuilderImpl) AddDocument(id int, content string) (_ error) {
 }
 
 func (b *indexBuilderImpl) ScanJsonStream(reader io.Reader, idField string,
-	contentFields []string) (err error) {
+	contentFields []string) (numLines int, err error) {
 
 	// Any further failure will reset our state machine:
-	line := 0
 	defer func() {
 		if err == io.EOF {
 			err = nil
 		} else if err != nil {
 			err = fmt.Errorf("IndexBuilder.ScanJsonStream, line %d: %v",
-				line, err)
+				numLines, err)
 		}
 	}()
 
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		line += 1
 		if len(scanner.Bytes()) == 0 {
 			continue // Ignores empty lines.
 		}
+		numLines += 1
 
 		var datum map[string]interface{}
 		err = json.Unmarshal(scanner.Bytes(), &datum)
@@ -63,7 +62,7 @@ func (b *indexBuilderImpl) ScanJsonStream(reader io.Reader, idField string,
 		id_, ok := datum[idField]
 		if !ok {
 			err = fmt.Errorf("document at line %v does not have ID field "+
-				"'%v' defined", line, idField)
+				"'%v' defined", numLines, idField)
 			return
 		}
 

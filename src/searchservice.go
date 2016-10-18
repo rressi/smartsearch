@@ -29,8 +29,8 @@ func main() {
 	}
 
 	// Handles feedback to the user:
-	fmt.Fprintf(os.Stderr, "input file: %v\n", inputFile)
-	fmt.Fprintf(os.Stderr, "http port: %v\n", httpPort)
+	fmt.Fprintf(os.Stderr, "input file: %v\n", *inputFile)
+	fmt.Fprintf(os.Stderr, "http port: %v\n", *httpPort)
 	defer func() {
 		if err == nil {
 			fmt.Fprint(os.Stderr, "Done.\n")
@@ -127,6 +127,8 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpError = http.StatusNotFound
 		return
+	} else if postings == nil {
+		postings = make([]int, 0)
 	}
 
 	var buf []byte
