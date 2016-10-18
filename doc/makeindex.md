@@ -19,6 +19,7 @@ It can also be used this way:
 zcat inputstream.txt.gz | makeindex -id i -content t,c > output.idx
 ```
 
+
 ## Command line usage
 
 ```sh
@@ -33,3 +34,27 @@ Usage of makeindex:
   -o string
         Output file (default "-")
 ```
+
+
+## How to build
+
+The first time you need to fetch the prerequisites, you can execute `init.sh` or
+just do the following:
+
+```sh
+export GOPATH=$(pwd)
+go get golang.org/x/text
+```
+
+It downloads and compiles `golang.org/x/text` that we use for text 
+normalization.
+
+Then to compile `makeindex` on your machine you can run `build.sh` or just 
+type the following:
+
+```sh
+export GOPATH=$(pwd)
+go build src/makeindex.go
+```
+
+The generated binary file should be placed in the root folder.
