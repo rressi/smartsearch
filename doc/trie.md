@@ -19,7 +19,7 @@ not necessarily associated with every node.
 nodes that correspond to keys of interest. For the space-optimized presentation 
 of prefix tree, see compact prefix tree.
 
-![Trie](https://en.wikipedia.org/wiki/Trie#/media/File:Trie_example.svg)
+![Trie](https://upload.wikimedia.org/wikipedia/commons/b/be/Trie_example.svg)
 
 Our implementation encodes a trie in a space-efficient binary blob that is 
 decoded and traversed during search.
