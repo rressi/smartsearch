@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 import urllib
 import urllib.request
 
@@ -54,8 +55,10 @@ def run_test_case(doc_stream, queries):
     try:
         srv = subprocess.Popen([_p("../searchservice" + _EXE),
                                 "-i", index_file,
+                                "-n", "localhost",
                                 "-p", "5987"])
         failures = 0
+        time.sleep(0.5)
         for query, expected_postings in queries:
             try:
                 execute_search(5987, query, expected_postings)

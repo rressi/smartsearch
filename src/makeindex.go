@@ -35,6 +35,7 @@ func runMakeIndex(
 	jsonContents string) {
 
 	// Handles feedback:
+	fmt.Fprint(os.Stderr, "[makeindex]\n")
 	fmt.Fprintf(os.Stderr, "input file: %v\n", inputFile)
 	fmt.Fprintf(os.Stderr, "output file: %v\n", outputFile)
 	fmt.Fprintf(os.Stderr, "json id: %v\n", jsonId)
@@ -42,9 +43,9 @@ func runMakeIndex(
 	var err error
 	defer func() {
 		if err == nil {
-			fmt.Fprint(os.Stderr, "Done.\n")
+			fmt.Fprint(os.Stderr, "Done.\n\n")
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
 		}
 	}()
 

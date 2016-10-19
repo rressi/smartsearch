@@ -57,4 +57,4 @@ export GOPATH=$(pwd)
 go build src/makeindex.go
 ```
 
-The generated binary file should be placed in the root folder.
+The generated binary file should be placed in the root folder of the project.
