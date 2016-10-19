@@ -33,7 +33,7 @@ func TestPostings_MergePostings(t *testing.T) {
 	sourceB = []int{1, 2, 5, 11}
 	expected_result = []int{2, 5}
 
-	result = MergePostings(sourceA, sourceB)
+	result = IntersectPostings(sourceA, sourceB)
 	if !reflect.DeepEqual(result, expected_result) {
 		t.Errorf("Unexpected result: %v", result)
 	}
@@ -42,7 +42,7 @@ func TestPostings_MergePostings(t *testing.T) {
 	sourceB = []int{1, 2, 5, 11}
 	expected_result = nil
 
-	result = MergePostings(sourceA, sourceB)
+	result = IntersectPostings(sourceA, sourceB)
 	if !reflect.DeepEqual(result, expected_result) {
 		t.Errorf("Unexpected result: %v", result)
 	}
@@ -51,7 +51,7 @@ func TestPostings_MergePostings(t *testing.T) {
 	sourceB = []int{}
 	expected_result = nil
 
-	result = MergePostings(sourceA, sourceB)
+	result = IntersectPostings(sourceA, sourceB)
 	if !reflect.DeepEqual(result, expected_result) {
 		t.Errorf("Unexpected result: %v", result)
 	}
@@ -60,7 +60,7 @@ func TestPostings_MergePostings(t *testing.T) {
 	sourceB = []int{1, 3, 5}
 	expected_result = nil
 
-	result = MergePostings(sourceA, sourceB)
+	result = IntersectPostings(sourceA, sourceB)
 	if !reflect.DeepEqual(result, expected_result) {
 		t.Errorf("Unexpected result: %v", result)
 	}

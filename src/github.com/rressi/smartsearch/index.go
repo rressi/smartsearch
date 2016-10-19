@@ -74,7 +74,7 @@ func (idx *indexImpl) Search(query string) (postings []int, err error) {
 		if i == 0 {
 			mergedPostings = nodePostings
 		} else {
-			mergedPostings = MergePostings(mergedPostings, nodePostings)
+			mergedPostings = IntersectPostings(mergedPostings, nodePostings)
 			if len(mergedPostings) == 0 {
 				return // NO result!
 			}

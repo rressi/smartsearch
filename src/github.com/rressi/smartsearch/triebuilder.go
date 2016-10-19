@@ -8,7 +8,6 @@ import (
 	"sort"
 )
 
-
 // A TrieBuilder is a tool that can be used to generate binary encoded tries
 // for TrieReader.
 type TrieBuilder interface {

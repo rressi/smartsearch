@@ -4,6 +4,7 @@ import (
 	"sort"
 )
 
+// It just clones one sequence of postings into new one.
 func CopyPostings(src []int) (postings []int) {
 	for _, posting := range src {
 		postings = append(postings, posting)
@@ -11,6 +12,8 @@ func CopyPostings(src []int) (postings []int) {
 	return
 }
 
+// It takes a sequence of postings and generates a new one that is obtained
+// after sorting and deduplicating them.
 func SortDedupPostings(src []int) (postings []int) {
 
 	if len(src) == 0 {
@@ -34,7 +37,10 @@ func SortDedupPostings(src []int) (postings []int) {
 	return
 }
 
-func MergePostings(srcA []int, srcB []int) (postings []int) {
+// It takes 2 sorted and deduplicated sequences of postings and generates a new
+// sorted and deduplicated sequence that contains postings found in both
+// original sequences.
+func IntersectPostings(srcA []int, srcB []int) (postings []int) {
 
 	nA := len(srcA)
 	nB := len(srcB)
