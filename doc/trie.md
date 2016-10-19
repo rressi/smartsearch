@@ -1,5 +1,7 @@
 # trie
 
+![Trie](https://upload.wikimedia.org/wikipedia/commons/b/be/Trie_example.svg)
+
 Follows a nice description of a *trie* from en.wikipedia.org:
 
 > In computer science, a trie, also called digital tree and sometimes radix tree
@@ -18,8 +20,6 @@ not necessarily associated with every node.
 > Rather, values tend only to be associated with leaves, and with some inner 
 nodes that correspond to keys of interest. For the space-optimized presentation 
 of prefix tree, see compact prefix tree.
-
-![Trie](https://upload.wikimedia.org/wikipedia/commons/b/be/Trie_example.svg)
 
 Our implementation encodes a trie in a space-efficient binary blob that is 
 decoded and traversed during search.
