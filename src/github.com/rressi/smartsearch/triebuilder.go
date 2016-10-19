@@ -8,16 +8,31 @@ import (
 	"sort"
 )
 
+
+// A TrieBuilder is a tool that can be used to generate binary encoded tries
+// for TrieReader.
 type TrieBuilder interface {
+
+	// Add one term to the trie to build, and associates it to one posting.
+	//
+	// The passed posting should be strictly positive.
+	//
+	// If term is an empty string then the posting is added to the root node.
 	Add(posting int, term string)
+
+	// Generates a trie and serializes to the passed io.Writer.
+	//
+	// It returns error on failures.
 	Dump(dst io.Writer) error
 }
 
+// A TrieBuilder's node used internally by its implementation.
 type trieNode struct {
 	edges    map[rune]*trieNode
 	postings map[int]int
 }
 
+// It creates a TrieBuilder's node.
 func newTrieNode() *trieNode {
 	node := new(trieNode)
 	node.edges = make(map[rune]*trieNode, 0)
@@ -25,6 +40,7 @@ func newTrieNode() *trieNode {
 	return node
 }
 
+// It implements TrieBuilder.Add
 func (t *trieNode) Add(posting int, term string) {
 	node := t
 	if len(term) > 0 {
@@ -40,6 +56,7 @@ func (t *trieNode) Add(posting int, term string) {
 	node.postings[posting] += 1
 }
 
+// It implements TrieBuilder.Dump
 func (t *trieNode) Dump(dst io.Writer) error {
 	_, err := t.dumpRec(dst)
 	if err != nil {
@@ -48,6 +65,7 @@ func (t *trieNode) Dump(dst io.Writer) error {
 	return err
 }
 
+// It recursively encodes one TrieBuilder's node.
 func (t *trieNode) dumpRec(dst io.Writer) (sz int, err error) {
 
 	// Utility function to save one value to a buffer:
@@ -159,6 +177,7 @@ func (t *trieNode) dumpRec(dst io.Writer) (sz int, err error) {
 	return
 }
 
+// It encodes all the postings associated to one TrieBuilder's node.
 func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 
 	// It fetches all the postings and sorts them:
@@ -192,6 +211,7 @@ func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 	return
 }
 
+// Creates a new TrieBuilder.
 func NewTrieBuilder() TrieBuilder {
 	root := newTrieNode()
 	return root

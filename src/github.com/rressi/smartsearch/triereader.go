@@ -35,6 +35,13 @@ var OutOfBounds = errors.New("Offset out of bound")
 //
 // It can be cloned in order to have two state machines decoding and traversing
 // the trie from the current position. Clones are completely independent.
+//
+// These readers are working as state machines that decode lazily the bytes
+// while traversing the trie. No up-front decoding of postings and edges is
+// performed.
+//
+// They can jump to one state to another to save CPU resources (methods
+// JumpNode, EnterNode).
 type TrieReader struct {
 	bytes              []byte
 	reader             *bytes.Reader
