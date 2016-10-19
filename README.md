@@ -40,10 +40,10 @@ We plain to implement the search also in JavaScript with this use case in mind.
 ## Implemented features
 
 The following feature have been implemented up to now:
-- Modules *triebuilder* and *triereader* that are the core of our search 
-framework. They will allow us to implement efficiently and with relative 
-simplicity many fancy algorithms. They share a binary format that is space 
-efficient and fast (based on UVarint and delta encoding).
+- Modules *triebuilder* and [*triereader*](doc/trie.md) that are the core of 
+our search framework. They will allow us to implement efficiently and with 
+relative simplicity many fancy algorithms. They share a binary format that is 
+space efficient and fast (based on UVarint and delta encoding).
 - A tool called [*makeindex*](doc/makeindex.md) to index streams of JSON 
 documents and creates serialized indices.
 - A tool called [*searchservice*](doc/searchservice.md) that uses an index 
