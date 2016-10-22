@@ -70,7 +70,7 @@ func runMakeIndex(
 	var numLines int
 	builder := smartsearch.NewIndexBuilder()
 	jsonContentsSplit := strings.Split(jsonContents, ",")
-	numLines, err = builder.ScanJsonStream(bufInput, jsonId, jsonContentsSplit)
+	numLines, err = builder.IndexJsonStream(bufInput, jsonId, jsonContentsSplit)
 	if err != nil {
 		return
 	}
