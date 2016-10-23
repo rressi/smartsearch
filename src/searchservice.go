@@ -292,7 +292,7 @@ func (app AppSearch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var limit int
-	limitValues, limitOk := values["limit"]
+	limitValues, limitOk := values["l"]
 	if !limitOk {
 		limit = -1
 	} else if len(limitValues) != 1 {

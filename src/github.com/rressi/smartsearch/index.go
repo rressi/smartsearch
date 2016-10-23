@@ -89,8 +89,9 @@ func (idx *indexImpl) Search(query string, limit int) (
 
 	if limit >= 0 && limit < len(mergedPostings) {
 		postings = mergedPostings[:limit]
+	} else {
+		postings = mergedPostings
 	}
 
-	postings = mergedPostings
 	return
 }

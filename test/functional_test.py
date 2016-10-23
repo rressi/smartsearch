@@ -2,9 +2,11 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 import urllib
 import urllib.request
+import traceback
 
 
 TEST_CASES = [
@@ -16,9 +18,10 @@ TEST_CASES = [
      {"i":3, "t":"The first time I tried hummus I liked it"}
      {"i":4, "t":"Spaceships are made of human dreams"}
      """,
-     [("first", [1, 3]),
-      ("read book", [1, 2]),
-      ("the_i???", [1, 3])]
+     [("first", -1, [1, 3]),
+      ("read book", -1, [1, 2]),
+      ("the_i???", -1, [1, 3]),
+      (" I ", 2, [1, 2])]
      )
 
 ]
@@ -58,13 +61,13 @@ def run_test_case(doc_stream, queries):
                                 "-n", "localhost",
                                 "-p", "5987"])
         failures = 0
-        time.sleep(0.5)
-        for query, expected_postings in queries:
+        # time.sleep(0.5)
+        for query, limit, expected_postings in queries:
             try:
-                execute_search(5987, query, expected_postings)
-            except Exception as ex:
+                execute_search(5987, query, limit, expected_postings)
+            except:
                 failures += 1
-                print(ex)
+                traceback.print_exception(*sys.exc_info())
                 pass
             assert failures == 0, "{} failures".format(failures)
     finally:
@@ -73,17 +76,26 @@ def run_test_case(doc_stream, queries):
             srv.wait()
 
 
-def execute_search(http_port, query, expected_postings):
+def execute_search(http_port, query, limit, expected_postings):
+
+    postings = None
+    http_query = None
+
     try:
-        http_query = "http://localhost:{}/search?q={}" \
-            .format(http_port,
-                    urllib.parse.quote_plus(query))
+        quoted_query = urllib.parse.quote_plus(query)
+        if limit >= 0:
+            http_query = "http://localhost:{}/search?l={}&q={}" \
+                .format(http_port, limit, quoted_query)
+        else:
+            http_query = "http://localhost:{}/search?q={}" \
+                .format(http_port, quoted_query)
         print("get:", http_query)
         response = urllib.request.urlopen(http_query).read()
         postings = json.loads(response.decode(encoding='utf-8'))
         assert postings == expected_postings
     except:
-        print("Failed query:", query, "->", postings, "!=", expected_postings)
+        print("Failed query: ['{}',{}] --({})--> [{}], expected [{}]".format(
+            query, limit, http_query, postings, expected_postings))
         raise
 
 
