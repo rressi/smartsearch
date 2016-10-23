@@ -3,11 +3,11 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 import urllib
 import urllib.request
 import traceback
 
+TEST_NAME = os.path.basename(__file__)[:-3]
 
 TEST_CASES = [
 
@@ -37,18 +37,19 @@ def main():
 def run_test_case(doc_stream, queries):
 
     try:
-        shutil.rmtree(_p("tmp"))
+        shutil.rmtree(_p(""))
     except FileNotFoundError:
         pass
-    os.mkdir(_p("tmp"))
+    os.mkdir(_p(""))
 
-    documents_file = _p("tmp/documents.txt")
-    with open(documents_file, "w") as fd:
+    documents_file = _p("documents.txt")
+    with open(documents_file, "w",
+              encoding="utf-8") as fd:
         for line in doc_stream.strip().splitlines():
-           fd.write(line.strip() + "\n")
+            fd.write(line.strip() + "\n")
 
-    index_file = _p("tmp/index.raw")
-    subprocess.check_call([_p("../makeindex" + _EXE),
+    index_file = _p("index.raw")
+    subprocess.check_call([_p("../../makeindex" + _EXE),
                            "-i", documents_file,
                            "-o", index_file,
                            "-id", "i",
@@ -56,7 +57,7 @@ def run_test_case(doc_stream, queries):
 
     srv = None
     try:
-        srv = subprocess.Popen([_p("../searchservice" + _EXE),
+        srv = subprocess.Popen([_p("../../searchservice" + _EXE),
                                 "-i", index_file,
                                 "-n", "localhost",
                                 "-p", "5987"])
@@ -101,7 +102,7 @@ def execute_search(http_port, query, limit, expected_postings):
 
 def _p(rel_path):
     folder = os.path.dirname(__file__)
-    path = os.path.join(folder, rel_path)
+    path = os.path.join(folder, TEST_NAME, rel_path)
     return os.path.normpath(os.path.abspath(path))
 
 _EXE = ""

@@ -28,10 +28,10 @@ func main() {
 	httpHostName := flags.String("n", "", "Optional HTTP host name.")
 	httpPort := flags.Uint("p", 5000, "TCP port to be used by the HTTP server.")
 	jsonId := flags.String("id", "id", "Json attribute for document ids")
-	staticAppFolder := flags.String("app", "", "optionally serves a static web"+
-		" app from this passed folder")
 	jsonContents := flags.String("content", "content",
 		"Json attributes to be indexed, comma separated")
+	staticAppFolder := flags.String("app", "", "optionally serves a static web"+
+		" app from this passed folder")
 	err = flags.Parse(os.Args[1:])
 	if err == flag.ErrHelp {
 		flag.Usage()
@@ -41,12 +41,14 @@ func main() {
 	// Handles feedback to the user:
 	fmt.Fprint(os.Stderr, "[searchservice]\n")
 	if *documentsFile != "" {
-		fmt.Fprintf(os.Stderr, "Documents file: %v\n", *indexFile)
+		fmt.Fprintf(os.Stderr, "Documents file:     %v\n", *documentsFile)
+		fmt.Fprintf(os.Stderr, "Id attribute:       %v\n", *jsonId)
+		fmt.Fprintf(os.Stderr, "Content attributes: %v\n", *jsonContents)
 	} else if indexFile != nil {
-		fmt.Fprintf(os.Stderr, "input file: %v\n", *indexFile)
+		fmt.Fprintf(os.Stderr, "input file:         %v\n", *indexFile)
 	}
-	fmt.Fprintf(os.Stderr, "http host name: %v\n", *httpHostName)
-	fmt.Fprintf(os.Stderr, "http port: %v\n", *httpPort)
+	fmt.Fprintf(os.Stderr, "http host name:     %v\n", *httpHostName)
+	fmt.Fprintf(os.Stderr, "http port:          %v\n", *httpPort)
 	defer func() {
 		if err == nil {
 			fmt.Fprint(os.Stderr, "Done.\n\n")
@@ -170,7 +172,7 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 	// Creates the web server and listen for incoming requests:
 	http.Handle("/search", AppSearch{ctx.index})
 	if ctx.docs != nil {
-		http.Handle("/doc", AppDoc{ctx.docs})
+		http.Handle("/docs", AppDoc{ctx.docs})
 	}
 	if ctx.staticAppFolder != "" {
 		app := AppStatic{ctx.staticAppFolder, "index.html"}
