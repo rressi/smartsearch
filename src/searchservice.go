@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 )
@@ -44,8 +43,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Documents file:     %v\n", *documentsFile)
 		fmt.Fprintf(os.Stderr, "Id attribute:       %v\n", *jsonId)
 		fmt.Fprintf(os.Stderr, "Content attributes: %v\n", *jsonContents)
-	} else if indexFile != nil {
+	}
+	if *indexFile != "" {
 		fmt.Fprintf(os.Stderr, "input file:         %v\n", *indexFile)
+	}
+	if *staticAppFolder != "" {
+		fmt.Fprintf(os.Stderr, "app folder:         %v\n", *staticAppFolder)
 	}
 	fmt.Fprintf(os.Stderr, "http host name:     %v\n", *httpHostName)
 	fmt.Fprintf(os.Stderr, "http port:          %v\n", *httpPort)
@@ -170,14 +173,14 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 	}
 
 	// Creates the web server and listen for incoming requests:
-	http.Handle("/search", AppSearch{ctx.index})
-	http.Handle("/rawIndex", AppRawBytes{ctx.rawIndex})
+	http.HandleFunc("/search", ServeSearch(ctx.index))
+	http.HandleFunc("/rawIndex", ServeRawBytes(ctx.rawIndex))
 	if ctx.docs != nil {
-		http.Handle("/docs", AppDoc{ctx.docs})
+		http.HandleFunc("/docs", ServeDocuments(ctx.docs))
 	}
 	if ctx.staticAppFolder != "" {
-		app := AppStatic{ctx.staticAppFolder, "index.html"}
-		http.Handle("/app", http.FileServer(app))
+		http.Handle("/app/", http.StripPrefix("/app/",
+			http.FileServer(http.Dir(ctx.staticAppFolder))))
 	}
 
 	address := fmt.Sprintf("%v:%v", httpHostName, httpPort)
@@ -191,212 +194,168 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 
 // -----------------------------------------------------------------------------
 
-type AppDoc struct {
-	docs smartsearch.JsonDocuments
-}
+func ServeDocuments(docs smartsearch.JsonDocuments) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-func (app AppDoc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	var httpError = http.StatusInternalServerError
-	var err error
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("AppDoc: %v", err)
-			if httpError != 0 {
-				w.WriteHeader(httpError)
-			}
-		}
-	}()
-
-	var values map[string][]string
-	values, err = url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		httpError = http.StatusBadRequest
-		return
-	}
-
-	idsValues, idsOk := values["ids"]
-	if !idsOk || len(idsValues) == 0 {
-		httpError = http.StatusBadRequest
-		err = errors.New("Missing parameter 'ids'")
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	for _, ids := range idsValues {
-		for _, idRaw := range strings.Split(ids, " ") {
-			var id int
-			id, err = strconv.Atoi(idRaw)
+		var httpError = http.StatusInternalServerError
+		var err error
+		defer func() {
 			if err != nil {
-				err = fmt.Errorf("non numeric id: '%v'", idRaw)
-				httpError = http.StatusBadRequest
-				return
+				err = fmt.Errorf("AppDoc: %v", err)
+				if httpError != 0 {
+					w.WriteHeader(httpError)
+				}
 			}
+		}()
 
-			var rawDocument []byte
-			rawDocument, idsOk = app.docs[id]
-			if !idsOk {
-				httpError = http.StatusNotFound
-				err = fmt.Errorf("invalid documente id: %v", id)
-				return
-			}
-
-			_, err = w.Write(rawDocument)
-			if err != nil {
-				return
-			}
-
-			_, err = w.Write([]byte{'\n'})
-			if err != nil {
-				return
-			}
-		}
-	}
-
-	httpError = 0 // Done!
-}
-
-// -----------------------------------------------------------------------------
-
-type AppSearch struct {
-	index smartsearch.Index
-}
-
-func (app AppSearch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	var httpError = http.StatusInternalServerError
-	var err error
-	defer func() {
+		var values map[string][]string
+		values, err = url.ParseQuery(r.URL.RawQuery)
 		if err != nil {
-			err = fmt.Errorf("AppSearch: %v", err)
-			if httpError != 0 {
-				w.WriteHeader(httpError)
-			}
-		}
-	}()
-
-	var values map[string][]string
-	values, err = url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		httpError = http.StatusBadRequest
-		return
-	}
-
-	var query string
-	queryValues, queryOk := values["q"]
-	if !queryOk {
-		// pass
-	} else if len(queryValues) != 1 {
-		httpError = http.StatusBadRequest
-		err = errors.New("Parameter 'q' passed more than once")
-		return
-	} else {
-		query = queryValues[0]
-	}
-
-	var limit int
-	limitValues, limitOk := values["l"]
-	if !limitOk {
-		limit = -1
-	} else if len(limitValues) != 1 {
-		httpError = http.StatusBadRequest
-		err = errors.New("Parameter 'limit' passed more than once")
-		return
-	} else {
-		limit, err = strconv.Atoi(limitValues[0])
-		if err != nil {
-			err = fmt.Errorf("invalid value for parameter 'limit': %v",
-				limitValues[0])
+			httpError = http.StatusBadRequest
 			return
 		}
-	}
 
-	var postings []int
-	postings, err = app.index.Search(query, limit)
-	if err != nil {
-		httpError = http.StatusNotFound
-		return
-	} else if postings == nil {
-		postings = make([]int, 0)
-	}
-
-	var buf []byte
-	buf, err = json.Marshal(postings)
-	if err != nil {
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(buf)
-	if err != nil {
-		return
-	}
-
-	httpError = 0 // Done!
-}
-
-// -----------------------------------------------------------------------------
-
-type AppRawBytes struct {
-	raw []byte
-}
-
-func (app AppRawBytes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	var httpError = http.StatusInternalServerError
-	var err error
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("AppRawBytes: %v", err)
-			if httpError != 0 {
-				w.WriteHeader(httpError)
-			}
-		}
-	}()
-
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(app.raw)
-	if err != nil {
-		return
-	}
-
-	httpError = 0 // Done!
-}
-
-// -----------------------------------------------------------------------------
-
-type AppStatic struct {
-	rootFolder  string
-	defaultFile string
-}
-
-func (app AppStatic) Open(name string) (file http.File, err error) {
-
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("AppStatic: %v", err)
-		}
-	}()
-
-	var filePath string
-	if name == "" {
-		filePath = path.Join(app.rootFolder, app.defaultFile)
-	} else {
-		name = path.Clean(name)
-		if name[:2] == ".." {
-			err = fmt.Errorf("suspicious path requested: %v", name)
+		idsValues, idsOk := values["ids"]
+		if !idsOk || len(idsValues) == 0 {
+			httpError = http.StatusBadRequest
+			err = errors.New("Missing parameter 'ids'")
 			return
 		}
-		filePath = path.Join(app.rootFolder, name)
-	}
 
-	file, err = os.OpenFile(filePath, os.O_RDONLY, 0)
-	if err != nil {
-		err = fmt.Errorf("cannot serve '%v': %v", filePath, err)
-		return
-	}
+		w.WriteHeader(http.StatusOK)
+		for _, ids := range idsValues {
+			for _, idRaw := range strings.Split(ids, " ") {
+				var id int
+				id, err = strconv.Atoi(idRaw)
+				if err != nil {
+					err = fmt.Errorf("non numeric id: '%v'", idRaw)
+					httpError = http.StatusBadRequest
+					return
+				}
 
-	return
+				var rawDocument []byte
+				rawDocument, idsOk = docs[id]
+				if !idsOk {
+					httpError = http.StatusNotFound
+					err = fmt.Errorf("invalid documente id: %v", id)
+					return
+				}
+
+				_, err = w.Write(rawDocument)
+				if err != nil {
+					return
+				}
+
+				_, err = w.Write([]byte{'\n'})
+				if err != nil {
+					return
+				}
+			}
+		}
+
+		httpError = 0 // Done!
+	}
 }
 
 // -----------------------------------------------------------------------------
+
+func ServeSearch(index smartsearch.Index) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var httpError = http.StatusInternalServerError
+		var err error
+		defer func() {
+			if err != nil {
+				err = fmt.Errorf("AppSearch: %v", err)
+				if httpError != 0 {
+					w.WriteHeader(httpError)
+				}
+			}
+		}()
+
+		var values map[string][]string
+		values, err = url.ParseQuery(r.URL.RawQuery)
+		if err != nil {
+			httpError = http.StatusBadRequest
+			return
+		}
+
+		var query string
+		queryValues, queryOk := values["q"]
+		if !queryOk {
+			// pass
+		} else if len(queryValues) != 1 {
+			httpError = http.StatusBadRequest
+			err = errors.New("Parameter 'q' passed more than once")
+			return
+		} else {
+			query = queryValues[0]
+		}
+
+		var limit int
+		limitValues, limitOk := values["l"]
+		if !limitOk {
+			limit = -1
+		} else if len(limitValues) != 1 {
+			httpError = http.StatusBadRequest
+			err = errors.New("Parameter 'limit' passed more than once")
+			return
+		} else {
+			limit, err = strconv.Atoi(limitValues[0])
+			if err != nil {
+				err = fmt.Errorf("invalid value for parameter 'limit': %v",
+					limitValues[0])
+				return
+			}
+		}
+
+		var postings []int
+		postings, err = index.Search(query, limit)
+		if err != nil {
+			httpError = http.StatusNotFound
+			return
+		} else if postings == nil {
+			postings = make([]int, 0)
+		}
+
+		var buf []byte
+		buf, err = json.Marshal(postings)
+		if err != nil {
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(buf)
+		if err != nil {
+			return
+		}
+
+		httpError = 0 // Done!
+	}
+}
+
+// -----------------------------------------------------------------------------
+
+func ServeRawBytes(raw []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var httpError = http.StatusInternalServerError
+		var err error
+		defer func() {
+			if err != nil {
+				err = fmt.Errorf("AppRawBytes: %v", err)
+				if httpError != 0 {
+					w.WriteHeader(httpError)
+				}
+			}
+		}()
+
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(raw)
+		if err != nil {
+			return
+		}
+
+		httpError = 0 // Done!
+	}
+}
