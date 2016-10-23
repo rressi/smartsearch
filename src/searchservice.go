@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -27,6 +28,8 @@ func main() {
 	httpHostName := flags.String("n", "", "Optional HTTP host name.")
 	httpPort := flags.Uint("p", 5000, "TCP port to be used by the HTTP server.")
 	jsonId := flags.String("id", "id", "Json attribute for document ids")
+	staticAppFolder := flags.String("app", "", "optionally serves a static web"+
+		" app from this passed folder")
 	jsonContents := flags.String("content", "content",
 		"Json attributes to be indexed, comma separated")
 	err = flags.Parse(os.Args[1:])
@@ -62,6 +65,10 @@ func main() {
 		return
 	}
 
+	if *staticAppFolder != "" {
+		ctx.staticAppFolder = *staticAppFolder
+	}
+
 	// Executes our service:
 	fmt.Fprint(os.Stderr, "listening...\n")
 	err = RunSearchService(ctx, *httpHostName, *httpPort)
@@ -73,9 +80,10 @@ func main() {
 // -----------------------------------------------------------------------------
 
 type AppContext struct {
-	docs     smartsearch.JsonDocuments
-	rawIndex []byte
-	index    smartsearch.Index
+	docs            smartsearch.JsonDocuments
+	rawIndex        []byte
+	index           smartsearch.Index
+	staticAppFolder string
 }
 
 func LoadDocuments(documentFile string, jsonId string, jsonContents string) (
@@ -162,8 +170,13 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 	// Creates the web server and listen for incoming requests:
 	http.Handle("/search", AppSearch{ctx.index})
 	if ctx.docs != nil {
-		http.Handle("/", AppDoc{ctx.docs})
+		http.Handle("/doc", AppDoc{ctx.docs})
 	}
+	if ctx.staticAppFolder != "" {
+		app := AppStatic{ctx.staticAppFolder, "index.html"}
+		http.Handle("/app", http.FileServer(app))
+	}
+
 	address := fmt.Sprintf("%v:%v", httpHostName, httpPort)
 	err = http.ListenAndServe(address, nil)
 	if err != nil {
@@ -346,3 +359,41 @@ func (app AppRawBytes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	httpError = 0 // Done!
 }
+
+// -----------------------------------------------------------------------------
+
+type AppStatic struct {
+	rootFolder  string
+	defaultFile string
+}
+
+func (app AppStatic) Open(name string) (file http.File, err error) {
+
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("AppStatic: %v", err)
+		}
+	}()
+
+	var filePath string
+	if name == "" {
+		filePath = path.Join(app.rootFolder, app.defaultFile)
+	} else {
+		name = path.Clean(name)
+		if name[:2] == ".." {
+			err = fmt.Errorf("suspicious path requested: %v", name)
+			return
+		}
+		filePath = path.Join(app.rootFolder, name)
+	}
+
+	file, err = os.OpenFile(filePath, os.O_RDONLY, 0)
+	if err != nil {
+		err = fmt.Errorf("cannot serve '%v': %v", filePath, err)
+		return
+	}
+
+	return
+}
+
+// -----------------------------------------------------------------------------
