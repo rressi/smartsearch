@@ -171,6 +171,7 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 
 	// Creates the web server and listen for incoming requests:
 	http.Handle("/search", AppSearch{ctx.index})
+	http.Handle("/rawIndex", AppRawBytes{ctx.rawIndex})
 	if ctx.docs != nil {
 		http.Handle("/docs", AppDoc{ctx.docs})
 	}

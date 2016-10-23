@@ -69,6 +69,7 @@ def main():
         if srv:
             srv.kill()
             srv.wait()
+    print("Success!")
 
 
 def fetch_docs(http_port, doc_ids, expected_content):
