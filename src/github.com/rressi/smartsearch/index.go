@@ -7,10 +7,10 @@ import (
 )
 
 type Index interface {
-	Search(query string) (postings []int, err error)
+	Search(query string, limit int) (postings []int, err error)
 }
 
-func NewIndex(reader io.Reader) (index Index, err error) {
+func NewIndex(reader io.Reader) (index Index, rawIdex []byte, err error) {
 
 	defer func() {
 		if err != nil {
@@ -31,6 +31,7 @@ func NewIndex(reader io.Reader) (index Index, err error) {
 	}
 
 	index = index_
+	rawIdex = buf.Bytes()
 	return
 }
 
@@ -38,7 +39,8 @@ type indexImpl struct {
 	trie *TrieReader
 }
 
-func (idx *indexImpl) Search(query string) (postings []int, err error) {
+func (idx *indexImpl) Search(query string, limit int) (
+	postings []int, err error) {
 
 	defer func() {
 		if err == io.EOF {
@@ -49,6 +51,10 @@ func (idx *indexImpl) Search(query string) (postings []int, err error) {
 			err = fmt.Errorf("Index.Search '%v': %v", query, err)
 		}
 	}()
+
+	if limit == 0 {
+		return // Nothing to do.
+	}
 
 	terms := Tokenize(query)
 	if len(terms) == 0 {
@@ -79,6 +85,10 @@ func (idx *indexImpl) Search(query string) (postings []int, err error) {
 				return // NO result!
 			}
 		}
+	}
+
+	if limit >= 0 && limit < len(mergedPostings) {
+		postings = mergedPostings[:limit]
 	}
 
 	postings = mergedPostings

@@ -20,11 +20,13 @@ func TestIndex_Base(t *testing.T) {
 		t.Error("Cannot generate test binary")
 	}
 
-	index, err := NewIndex(buf)
+	index, indexRaw, err := NewIndex(buf)
 	if err != nil {
 		t.Errorf("Cannot create index: %v", err)
 	} else if index == nil {
 		t.Error("Nil returned")
+	} else if len(indexRaw) < 2 {
+		t.Error("Invalid raw index returned")
 	}
 
 	var query string
@@ -32,7 +34,7 @@ func TestIndex_Base(t *testing.T) {
 
 	query = "Text to test"
 	expected_postings = []int{1, 2}
-	postings, err = index.Search(query)
+	postings, err = index.Search(query, -1)
 	if !reflect.DeepEqual(postings, expected_postings) {
 		t.Errorf("Unexpected result with query %v: postings=%v", query,
 			postings)
@@ -40,7 +42,7 @@ func TestIndex_Base(t *testing.T) {
 
 	query = "test/to-TEXT!"
 	expected_postings = []int{1, 2}
-	postings, err = index.Search(query)
+	postings, err = index.Search(query, -1)
 	if !reflect.DeepEqual(postings, expected_postings) {
 		t.Errorf("Unexpected result with query %v: postings=%v", query,
 			postings)
@@ -48,7 +50,7 @@ func TestIndex_Base(t *testing.T) {
 
 	query = "test         to"
 	expected_postings = []int{1, 2, 4}
-	postings, err = index.Search(query)
+	postings, err = index.Search(query, -1)
 	if !reflect.DeepEqual(postings, expected_postings) {
 		t.Errorf("Unexpected result with query %v: postings=%v", query,
 			postings)

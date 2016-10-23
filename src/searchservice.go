@@ -12,12 +12,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
-
-var index smartsearch.Index
-var documents smartsearch.JsonDocuments
 
 func main() {
 
@@ -55,12 +52,11 @@ func main() {
 		}
 	}()
 
+	var ctx AppContext
 	if *documentsFile != "" {
-		documents, index, err = LoadDocuments(*documentsFile, *jsonId,
-			*jsonContents)
+		ctx, err = LoadDocuments(*documentsFile, *jsonId, *jsonContents)
 	} else {
-		documents = nil
-		index, err = IndexDocuments(*indexFile)
+		ctx, err = LoadIndex(*indexFile)
 	}
 	if err != nil {
 		return
@@ -68,16 +64,22 @@ func main() {
 
 	// Executes our service:
 	fmt.Fprint(os.Stderr, "listening...\n")
-	err = RunSearchService(*httpHostName, *httpPort)
+	err = RunSearchService(ctx, *httpHostName, *httpPort)
 	if err != nil {
 		return
 	}
 }
 
-func LoadDocuments(documentFile string,
-	jsonId string,
-	jsonContents string) (
-	documents smartsearch.JsonDocuments, index smartsearch.Index, err error) {
+// -----------------------------------------------------------------------------
+
+type AppContext struct {
+	docs     smartsearch.JsonDocuments
+	rawIndex []byte
+	index    smartsearch.Index
+}
+
+func LoadDocuments(documentFile string, jsonId string, jsonContents string) (
+	ctx AppContext, err error) {
 
 	defer func() {
 		if err != nil {
@@ -105,20 +107,20 @@ func LoadDocuments(documentFile string,
 	// Loads and indexes all the documents:
 	builder := smartsearch.NewIndexBuilder()
 	jsonContentsSplit := strings.Split(jsonContents, ",")
-	documents, err = builder.LoadAndIndexJsonStream(bufInput, jsonId,
+	ctx.docs, err = builder.LoadAndIndexJsonStream(bufInput, jsonId,
 		jsonContentsSplit)
 	if err != nil {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "documents loaded: %v\n", len(documents))
+	fmt.Fprintf(os.Stderr, "documents loaded: %v\n", len(ctx.docs))
 
 	indexBytes := new(bytes.Buffer)
 	builder.Dump(indexBytes)
-	index, err = smartsearch.NewIndex(indexBytes)
+	ctx.index, ctx.rawIndex, err = smartsearch.NewIndex(indexBytes)
 	return
 }
 
-func IndexDocuments(inputFile string) (index smartsearch.Index, err error) {
+func LoadIndex(inputFile string) (ctx AppContext, err error) {
 
 	defer func() {
 		if err != nil {
@@ -139,11 +141,12 @@ func IndexDocuments(inputFile string) (index smartsearch.Index, err error) {
 	}
 
 	// Loads the index from the input stream:
-	index, err = smartsearch.NewIndex(input)
+	ctx.index, ctx.rawIndex, err = smartsearch.NewIndex(input)
 	return
 }
 
-func RunSearchService(httpHostName string, httpPort uint) (err error) {
+func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
+	err error) {
 
 	defer func() {
 		if err != nil {
@@ -151,16 +154,16 @@ func RunSearchService(httpHostName string, httpPort uint) (err error) {
 		}
 	}()
 
-	if index == nil {
+	if ctx.index == nil {
 		err = errors.New("Index not loaded")
 		return
 	}
 
 	// Creates the web server and listen for incoming requests:
-	if documents != nil {
-		http.HandleFunc("/getDocument", DocumentsHandler)
+	http.Handle("/search", AppSearch{ctx.index})
+	if ctx.docs != nil {
+		http.Handle("/", AppDoc{ctx.docs})
 	}
-	http.HandleFunc("/search", SearchHandler)
 	address := fmt.Sprintf("%v:%v", httpHostName, httpPort)
 	err = http.ListenAndServe(address, nil)
 	if err != nil {
@@ -170,13 +173,19 @@ func RunSearchService(httpHostName string, httpPort uint) (err error) {
 	return
 }
 
-func DocumentsHandler(w http.ResponseWriter, r *http.Request) {
+// -----------------------------------------------------------------------------
+
+type AppDoc struct {
+	docs smartsearch.JsonDocuments
+}
+
+func (app AppDoc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var httpError = http.StatusInternalServerError
 	var err error
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("DocumentsHandler: %v", err)
+			err = fmt.Errorf("AppDoc: %v", err)
 			if httpError != 0 {
 				w.WriteHeader(httpError)
 			}
@@ -190,51 +199,60 @@ func DocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ids, ok := values["ids"]
-	if !ok || len(ids) == 0 {
+	idsValues, idsOk := values["ids"]
+	if !idsOk || len(idsValues) == 0 {
 		httpError = http.StatusBadRequest
 		err = errors.New("Missing parameter 'ids'")
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	for _, idRaw := range strings.Split(ids[0], " ") {
-		var id int
-		id, err = strconv.Atoi(idRaw)
-		if err != nil {
-			httpError = http.StatusBadRequest
-			return
-		}
+	for _, ids := range idsValues {
+		for _, idRaw := range strings.Split(ids, " ") {
+			var id int
+			id, err = strconv.Atoi(idRaw)
+			if err != nil {
+				err = fmt.Errorf("non numeric id: '%v'", idRaw)
+				httpError = http.StatusBadRequest
+				return
+			}
 
-		var rawDocument []byte
-		rawDocument, ok = documents[id]
-		if !ok {
-			httpError = http.StatusNotFound
-			err = fmt.Errorf("invalid id %v", id)
-			return
-		}
+			var rawDocument []byte
+			rawDocument, idsOk = app.docs[id]
+			if !idsOk {
+				httpError = http.StatusNotFound
+				err = fmt.Errorf("invalid documente id: %v", id)
+				return
+			}
 
-		_, err = w.Write(rawDocument)
-		if err != nil {
-			return
-		}
+			_, err = w.Write(rawDocument)
+			if err != nil {
+				return
+			}
 
-		_, err = w.Write([]byte{'\n'})
-		if err != nil {
-			return
+			_, err = w.Write([]byte{'\n'})
+			if err != nil {
+				return
+			}
 		}
 	}
 
 	httpError = 0 // Done!
 }
 
-func SearchHandler(w http.ResponseWriter, r *http.Request) {
+// -----------------------------------------------------------------------------
+
+type AppSearch struct {
+	index smartsearch.Index
+}
+
+func (app AppSearch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var httpError = http.StatusInternalServerError
 	var err error
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("SearchHandler: %v", err)
+			err = fmt.Errorf("AppSearch: %v", err)
 			if httpError != 0 {
 				w.WriteHeader(httpError)
 			}
@@ -248,15 +266,37 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query, ok := values["q"]
-	if !ok || len(query) == 0 {
+	var query string
+	queryValues, queryOk := values["q"]
+	if !queryOk {
+		// pass
+	} else if len(queryValues) != 1 {
 		httpError = http.StatusBadRequest
-		err = errors.New("Missing parameter 'q'")
+		err = errors.New("Parameter 'q' passed more than once")
 		return
+	} else {
+		query = queryValues[0]
+	}
+
+	var limit int
+	limitValues, limitOk := values["limit"]
+	if !limitOk {
+		limit = -1
+	} else if len(limitValues) != 1 {
+		httpError = http.StatusBadRequest
+		err = errors.New("Parameter 'limit' passed more than once")
+		return
+	} else {
+		limit, err = strconv.Atoi(limitValues[0])
+		if err != nil {
+			err = fmt.Errorf("invalid value for parameter 'limit': %v",
+				limitValues[0])
+			return
+		}
 	}
 
 	var postings []int
-	postings, err = index.Search(query[0])
+	postings, err = app.index.Search(query, limit)
 	if err != nil {
 		httpError = http.StatusNotFound
 		return
@@ -272,6 +312,34 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(buf)
+	if err != nil {
+		return
+	}
+
+	httpError = 0 // Done!
+}
+
+// -----------------------------------------------------------------------------
+
+type AppRawBytes struct {
+	raw []byte
+}
+
+func (app AppRawBytes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	var httpError = http.StatusInternalServerError
+	var err error
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("AppRawBytes: %v", err)
+			if httpError != 0 {
+				w.WriteHeader(httpError)
+			}
+		}
+	}()
+
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(app.raw)
 	if err != nil {
 		return
 	}
