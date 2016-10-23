@@ -17,7 +17,7 @@ func ServeDocuments(docs JsonDocuments) http.HandlerFunc {
 		var err error
 		defer func() {
 			if err != nil {
-				err = fmt.Errorf("AppDoc: %v", err)
+				err = fmt.Errorf("ServeDocuments: %v", err)
 				if httpError != 0 {
 					w.WriteHeader(httpError)
 				}
@@ -82,7 +82,7 @@ func ServeSearch(index Index) http.HandlerFunc {
 		var err error
 		defer func() {
 			if err != nil {
-				err = fmt.Errorf("AppSearch: %v", err)
+				err = fmt.Errorf("ServeSearch: %v", err)
 				if httpError != 0 {
 					w.WriteHeader(httpError)
 				}
@@ -159,7 +159,7 @@ func ServeRawBytes(raw []byte) http.HandlerFunc {
 		var err error
 		defer func() {
 			if err != nil {
-				err = fmt.Errorf("AppRawBytes: %v", err)
+				err = fmt.Errorf("ServeRawBytes: %v", err)
 				if httpError != 0 {
 					w.WriteHeader(httpError)
 				}
