@@ -17,6 +17,7 @@ func ServeDocuments(docs JsonDocuments) http.HandlerFunc {
 		var err error
 		defer func() {
 			if err != nil {
+				fmt.Printf("Error: ServeDocuments: %v\n", err)
 				err = fmt.Errorf("ServeDocuments: %v", err)
 				if httpError != 0 {
 					w.WriteHeader(httpError)
@@ -39,6 +40,7 @@ func ServeDocuments(docs JsonDocuments) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
+		httpError = 0 // Done!
 		for _, ids := range idsValues {
 			for _, idRaw := range strings.Split(ids, " ") {
 				var id int
@@ -69,7 +71,6 @@ func ServeDocuments(docs JsonDocuments) http.HandlerFunc {
 			}
 		}
 
-		httpError = 0 // Done!
 	}
 }
 
