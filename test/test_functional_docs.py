@@ -1,6 +1,7 @@
 import json
 import itertools
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -11,12 +12,8 @@ import traceback
 
 TEST_NAME = os.path.basename(__file__)[:-3]
 
-DOCS = """
-     {"id":1, "title":"This is the first book I read"}
-     {"id":26, "title":"I love to read a book"}
-     {"id":13, "title": "The first time I tried hummus", "p": [10, 1]}
-     {"id":4, "title":"Spaceships are made of human dreams"}
-     """
+CONTENT_FIELDS = "Actor 1,Actor 2,Actor 3,Distributor,Director,Fun Facts," \
+                 "Locations,Production Company,Release Year,Title,Writer"
 
 
 def main():
@@ -28,33 +25,34 @@ def main():
     os.mkdir(_p(""))
 
     docs = {}
-    documents_file = _p("documents.txt")
-    with open(documents_file, "w",
+    documents_file = _p("../documents.json")
+    with open(documents_file, "r",
               encoding="utf-8") as fd:
-        for line in DOCS.strip().splitlines():
-            line = line.strip() + "\n"
-            fd.write(line)
+        for line in fd:
             doc = json.loads(line)
-            docs[doc["id"]] = line.encode(encoding="utf-8")
+            docs[doc["uuid"]] = line.encode(encoding="utf-8")
 
     srv = None
     try:
         srv = subprocess.Popen([_p("../../searchservice" + _EXE),
                                 "-d", documents_file,
-                                "-id", "id",
-                                "-content", "title",
+                                "-id", "uuid",
+                                "-content", CONTENT_FIELDS,
                                 "-n", "localhost",
                                 "-p", "5987"])
         failures = 0
         # time.sleep(0.5)
-        for doc_id, expected_content in docs.items():
+        sample = random.sample(docs.items(), 10)
+        for doc_id, expected_content in sample:
             try:
                 fetch_docs(5987, [doc_id], expected_content)
             except:
                 failures += 1
                 traceback.print_exception(*sys.exc_info())
                 pass
-        for doc_ids in itertools.combinations(docs.keys(), 2):
+
+        sample = random.sample(docs.keys(), 4)
+        for doc_ids in itertools.combinations(sample, 2):
             expected_content = b"".join(docs[id_]
                                         for id_ in doc_ids)
             try:

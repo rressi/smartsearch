@@ -199,8 +199,11 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 		}
 		numLines += 1
 
+		blob := make([]byte, len(scanner.Bytes()))
+		copy(blob, scanner.Bytes())
+
 		var id int
-		id, err = b.AddJsonDocument(scanner.Bytes(), idField, contentFields)
+		id, err = b.AddJsonDocument(blob, idField, contentFields)
 		if err != nil {
 			return
 		}
@@ -211,7 +214,7 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 		}
 
 		// Indexes current document:
-		documents_[id] = scanner.Bytes()
+		documents_[id] = blob
 	}
 
 	documents = documents_

@@ -14,7 +14,7 @@ do
     echo
     echo "---------------------------------------------------------------------"
     echo "Running $test_script..."
-    python ${test_script} || num_failed=$(expr ${num_failed} + 1)
+    python3 ${test_script} || num_failed=$(expr ${num_failed} + 1)
 done
 
 echo "---------------------------------------------------------------------"
