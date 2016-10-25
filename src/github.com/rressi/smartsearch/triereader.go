@@ -67,7 +67,6 @@ func NewTrieReader(bytes_ []byte) (trieReader *TrieReader, node Node,
 	err error) {
 	trieReader = new(TrieReader)
 	trieReader.bytes = bytes_
-	trieReader.reader = new(bytes.Reader)
 	node, err = trieReader.Reset()
 	return
 }
@@ -80,7 +79,7 @@ func NewTrieReader(bytes_ []byte) (trieReader *TrieReader, node Node,
 // - information about the root node.
 // - an error in case of failure.
 func (t *TrieReader) Reset() (_ Node, _ error) {
-	t.reader.Reset(t.bytes)
+	t.reader = bytes.NewReader(t.bytes)
 	return t.readNode()
 }
 
@@ -95,7 +94,7 @@ func (t *TrieReader) tell() (offset int) {
 //
 // This happen only when some inconsistency is found into the input bytes.
 func (t *TrieReader) clear() {
-	t.reader.Reset(t.bytes[:0])
+	t.reader = bytes.NewReader(t.bytes[:0])
 	t.postingsLeft = 0
 	t.edgesLeft = 0
 	t.childrenBaseOffset = 0
@@ -108,12 +107,12 @@ func (t *TrieReader) clear() {
 //
 // It returns:
 // - an error in case of failure.
-func (trieReader *TrieReader) seek(offset int) (err error) {
+func (t *TrieReader) seek(offset int) (err error) {
 
-	if int(offset) <= 0 || int(offset) > len(trieReader.bytes) {
+	if int(offset) <= 0 || int(offset) > len(t.bytes) {
 		err = OutOfBounds
 	} else {
-		trieReader.reader.Reset(trieReader.bytes[offset:])
+		t.reader = bytes.NewReader(t.bytes[offset:])
 	}
 
 	return
