@@ -1,11 +1,9 @@
-import json
 import os
 import shutil
 import subprocess
-import sys
+import time
 import urllib
 import urllib.request
-import traceback
 
 TEST_NAME = os.path.basename(__file__)[:-3]
 
@@ -49,6 +47,7 @@ def main():
 
         http_query = "http://localhost:5987/rawIndex"
         print("get:", http_query)
+        time.sleep(2.0)
         raw_index = urllib.request.urlopen(http_query).read()
         assert raw_index == expected_raw_index, \
             "\nraw_index: [{}]\n".format(" ".join(hex(b)

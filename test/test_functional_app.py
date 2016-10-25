@@ -43,7 +43,7 @@ def main():
                                 "--app", _p(""),
                                 "-p", "5987"])
         failures = 0
-        time.sleep(0.5)
+        time.sleep(2.0)
         for name in sorted(files.keys()):
             try:
                 fetch_file(5987, name, files[name])

@@ -3,9 +3,10 @@ import os
 import shutil
 import subprocess
 import sys
+import time
+import traceback
 import urllib
 import urllib.request
-import traceback
 
 TEST_NAME = os.path.basename(__file__)[:-3]
 
@@ -62,7 +63,7 @@ def run_test_case(doc_stream, queries):
                                 "-n", "localhost",
                                 "-p", "5987"])
         failures = 0
-        # time.sleep(0.5)
+        time.sleep(2.0)
         for query, limit, expected_postings in queries:
             try:
                 execute_search(5987, query, limit, expected_postings)

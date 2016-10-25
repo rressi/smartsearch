@@ -5,9 +5,10 @@ import random
 import shutil
 import subprocess
 import sys
+import traceback
+import time
 import urllib
 import urllib.request
-import traceback
 
 
 TEST_NAME = os.path.basename(__file__)[:-3]
@@ -89,7 +90,7 @@ def main():
                                 "-n", "localhost",
                                 "-p", "5987"])
         failures = 0
-        # time.sleep(0.5)
+        time.sleep(2.0)
         sample = random.sample(docs.items(), 10)
         for doc_id, expected_content in sample:
             try:
