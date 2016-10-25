@@ -29,10 +29,12 @@ def main():
         content = b"This is just a test\n"
         fd.write(content)
         files[""] = content
+        files["app"] = content
+        files["app/"] = content
     for name, content in itertools.islice(zip(rand_file_names(),
                                               rand_file_content()),
                                               5):
-        files[name] = content
+        files["app/" + name] = content
         with open(_p(name), "wb") as fd:
             fd.write(content)
 
@@ -88,7 +90,7 @@ def fetch_file(http_port, file_name, expected_content):
 
     try:
         quoted_file = urllib.parse.quote_plus(file_name)
-        http_query = "http://localhost:{}/app/{}".format(http_port, quoted_file)
+        http_query = "http://localhost:{}/{}".format(http_port, quoted_file)
         print("get:", http_query)
         content = urllib.request.urlopen(http_query).read()
         assert content == expected_content

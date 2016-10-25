@@ -178,6 +178,10 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 	if ctx.staticAppFolder != "" {
 		http.Handle("/app/", http.StripPrefix("/app/",
 			http.FileServer(http.Dir(ctx.staticAppFolder))))
+
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/app", http.StatusSeeOther)
+		})
 	}
 
 	address := fmt.Sprintf("%v:%v", httpHostName, httpPort)
