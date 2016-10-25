@@ -7,36 +7,62 @@ import (
 
 func TestTokenizer_Base(t *testing.T) {
 
-	tokens := Tokenize("YES!-This ìs ä fÄncy, is a string")
-	expected_tokens := []string{"a", "fancy", "is", "string", "this", "yes"}
+	var tokens, expected_tokens []string
+	var incomplete_token, expected_incomplete_token string
+	var query string
+
+	query = "YES!-This ìs ä fÄncy, is a string"
+	expected_tokens = []string{"a", "fancy", "is", "this", "yes"}
+	expected_incomplete_token = "string"
+
+	tokens, incomplete_token = TokenizeForSearch(query)
 	if !reflect.DeepEqual(tokens, expected_tokens) {
 		t.Errorf("Unexpected result: tockens=%v", tokens)
-	}
-}
-
-func TestTokenizer_Empty(t *testing.T) {
-
-	var tokens []string
-	var expected_tokens []string
-
-	tokens = Tokenize("")
-	if !reflect.DeepEqual(tokens, expected_tokens) {
-		t.Errorf("Unexpected result: tockens=%v,%d expected_tokens=%v,%d",
-			tokens, len(tokens),
-			expected_tokens, len(expected_tokens))
+	} else if incomplete_token != expected_incomplete_token {
+		t.Errorf("Unexpected result: incomplete_token=%v", incomplete_token)
 	}
 
-	tokens = Tokenize(" ")
+	query = "YES!-This ìs ä fÄncy, is a string-"
+	expected_tokens = []string{"a", "fancy", "is", "string", "this", "yes"}
+	expected_incomplete_token = ""
+
+	tokens, incomplete_token = TokenizeForSearch(query)
 	if !reflect.DeepEqual(tokens, expected_tokens) {
-		t.Errorf("Unexpected result: tockens=%v,%d expected_tokens=%v,%d",
-			tokens, len(tokens),
-			expected_tokens, len(expected_tokens))
+		t.Errorf("Unexpected result: tockens=%v", tokens)
+	} else if incomplete_token != expected_incomplete_token {
+		t.Errorf("Unexpected result: incomplete_token=%v", incomplete_token)
 	}
 
-	tokens = Tokenize("_/@--")
+	query = ""
+	expected_tokens = nil
+	expected_incomplete_token = ""
+
+	tokens, incomplete_token = TokenizeForSearch(query)
 	if !reflect.DeepEqual(tokens, expected_tokens) {
-		t.Errorf("Unexpected result: tockens=%v,%d expected_tokens=%v,%d",
-			tokens, len(tokens),
-			expected_tokens, len(expected_tokens))
+		t.Errorf("Unexpected result: tockens=%v", tokens)
+	} else if incomplete_token != expected_incomplete_token {
+		t.Errorf("Unexpected result: incomplete_token=%v", incomplete_token)
+	}
+
+	query = "Th"
+	expected_tokens = nil
+	expected_incomplete_token = "th"
+
+	tokens, incomplete_token = TokenizeForSearch(query)
+	if !reflect.DeepEqual(tokens, expected_tokens) {
+		t.Errorf("Unexpected result: tockens=%v", tokens)
+	} else if incomplete_token != expected_incomplete_token {
+		t.Errorf("Unexpected result: incomplete_token=%v", incomplete_token)
+	}
+
+	query = "TH "
+	expected_tokens = []string{"th"}
+	expected_incomplete_token = ""
+
+	tokens, incomplete_token = TokenizeForSearch(query)
+	if !reflect.DeepEqual(tokens, expected_tokens) {
+		t.Errorf("Unexpected result: tockens=%v", tokens)
+	} else if incomplete_token != expected_incomplete_token {
+		t.Errorf("Unexpected result: incomplete_token=%v", incomplete_token)
 	}
 }

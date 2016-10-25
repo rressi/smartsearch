@@ -6,10 +6,25 @@ import (
 	"io"
 )
 
+// An interface to search using pre-build indices.
 type Index interface {
+
+	// Given the passed query, it searches it inside the index and returns all the
+	// postings of matching documents.
+	//
+	// It returns:
+	// - postings of matching documents, sorted and deduplicated.
+	// - an error in case of failure
 	Search(query string, limit int) (postings []int, err error)
 }
 
+// Given the passed io.Reader, loads an index previously generated with
+// IndexBuilder.
+//
+// It returns:
+// - the newly created index.
+// - the bytes containing the read index.
+// - an error on failure.
 func NewIndex(reader io.Reader) (index Index, rawIdex []byte, err error) {
 
 	defer func() {
@@ -35,10 +50,12 @@ func NewIndex(reader io.Reader) (index Index, rawIdex []byte, err error) {
 	return
 }
 
+// Local storage for the private implementation of an Index.
 type indexImpl struct {
 	trie *TrieReader
 }
 
+// Private implementation of Index.Search.
 func (idx *indexImpl) Search(query string, limit int) (
 	postings []int, err error) {
 
@@ -56,14 +73,16 @@ func (idx *indexImpl) Search(query string, limit int) (
 		return // Nothing to do.
 	}
 
-	terms := Tokenize(query)
-	if len(terms) == 0 {
+	// Extracts all the terms:
+	terms, incomplete_term := TokenizeForSearch(query)
+	if len(terms) == 0 && len(incomplete_term) == 0 {
 		return
 	}
 
+	// Performs exact match with all complete terms while intersecting all
+	// the fetched postings:
 	var mergedPostings []int
 	for i, term := range terms {
-
 		var node Node
 		idx.trie.Reset()
 		node, err = idx.trie.Match(term)
@@ -82,11 +101,40 @@ func (idx *indexImpl) Search(query string, limit int) (
 		} else {
 			mergedPostings = IntersectPostings(mergedPostings, nodePostings)
 			if len(mergedPostings) == 0 {
-				return // NO result!
+				return // No result!
 			}
 		}
 	}
 
+	// If there was a potentially incomplete term, it performs prefix match with
+	// it and intersects all resulting postings with ones previously obtained:
+	if len(incomplete_term) > 0 {
+
+		var node Node
+		idx.trie.Reset()
+		node, err = idx.trie.Match(incomplete_term)
+		if err != nil ||
+			(node.NumPostings == 0 && node.NumEdges == 0) {
+			return
+		}
+
+		var nodePostings []int
+		nodePostings, err = idx.trie.ReadAllPostingsRecursive()
+		if err != nil {
+			return
+		}
+
+		if mergedPostings == nil {
+			mergedPostings = nodePostings
+		} else {
+			mergedPostings = IntersectPostings(mergedPostings, nodePostings)
+			if len(mergedPostings) == 0 {
+				return // No result!
+			}
+		}
+	}
+
+	// In case we have a limit set it truncates the result:
 	if limit >= 0 && limit < len(mergedPostings) {
 		postings = mergedPostings[:limit]
 	} else {

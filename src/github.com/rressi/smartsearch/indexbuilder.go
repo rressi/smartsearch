@@ -87,8 +87,15 @@ type indexBuilderImpl struct {
 
 // Implementation of IndexBuilder.AddDocument
 func (b *indexBuilderImpl) AddDocument(id int, content string) (_ error) {
-	for _, term := range Tokenize(content) {
+
+	terms, incomplete_term := TokenizeForSearch(content)
+
+	for _, term := range terms {
 		b.trie.Add(id, term)
+	}
+
+	if len(incomplete_term) > 0 {
+		b.trie.Add(id, incomplete_term)
 	}
 
 	return
