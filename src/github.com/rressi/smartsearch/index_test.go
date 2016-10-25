@@ -71,4 +71,20 @@ func TestIndex_Base(t *testing.T) {
 		t.Errorf("Unexpected result with query [%v]: postings=%v", query,
 			postings)
 	}
+
+	query = "-? "
+	expected_postings = []int{1, 2, 3, 4}
+	postings, err = index.Search(query, -1)
+	if !reflect.DeepEqual(postings, expected_postings) {
+		t.Errorf("Unexpected result with query [%v]: postings=%v", query,
+			postings)
+	}
+
+	query = ""
+	expected_postings = []int{1, 2, 3, 4}
+	postings, err = index.Search(query, -1)
+	if !reflect.DeepEqual(postings, expected_postings) {
+		t.Errorf("Unexpected result with query [%v]: postings=%v", query,
+			postings)
+	}
 }

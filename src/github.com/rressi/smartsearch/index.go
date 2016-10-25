@@ -75,7 +75,17 @@ func (idx *indexImpl) Search(query string, limit int) (
 
 	// Extracts all the terms:
 	terms, incomplete_term := TokenizeForSearch(query)
+
+	// Special case: we need to extract all the postings:
 	if len(terms) == 0 && len(incomplete_term) == 0 {
+		idx.trie.Reset()
+		var _postings []int
+		_postings, err = idx.trie.ReadAllPostingsRecursive()
+		if err != nil {
+			return
+		}
+
+		postings = _postings
 		return
 	}
 
