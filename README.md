@@ -17,7 +17,8 @@ You can give a look to demonstrative web application:
 ## Components
 
 ### smartsearch framework
-It is a search library, with many modules like the following:
+It is a search [library](doc/smartsearch.html), with many modules like the 
+following:
 - *triebuilder* and [*triereader*](doc/trie.md) that are the core of 
 our search framework. They will allow us to implement efficiently and with 
 relative simplicity many fancy algorithms. They share a binary format that is 
@@ -27,6 +28,9 @@ characters decorations (for example Ä becomes a), all irrelevant characters and
 where we isolate all the single pure tokens before indexing or searching.
 - *indexbuilder* and *index* that are on top of all other components are 
 meant to make easy and effective doing search.
+
+
+
 
 ### makeindex
 [*makeindex*](doc/makeindex.md) preprocess streams of JSON documents and 
