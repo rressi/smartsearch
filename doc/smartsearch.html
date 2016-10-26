@@ -1,0 +1,869 @@
+use 'godoc cmd/github.com/rressi/smartsearch' for documentation on the github.com/rressi/smartsearch command 
+
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+<!--
+	Note: Static (i.e., not template-generated) href and id
+	attributes start with "pkg-" to make it impossible for
+	them to conflict with generated attributes (some of which
+	correspond to Go identifiers).
+-->
+
+	<script type='text/javascript'>
+	document.ANALYSIS_DATA = ;
+	document.CALLGRAPH = ;
+	</script>
+
+	
+		
+		<div id="short-nav">
+			<dl>
+			<dd><code>import "github.com/rressi/smartsearch"</code></dd>
+			</dl>
+			<dl>
+			<dd><a href="#pkg-overview" class="overviewLink">Overview</a></dd>
+			<dd><a href="#pkg-index" class="indexLink">Index</a></dd>
+			
+			
+			</dl>
+		</div>
+		<!-- The package's Name is printed as title by the top-level template -->
+		<div id="pkg-overview" class="toggleVisible">
+			<div class="collapsed">
+				<h2 class="toggleButton" title="Click to show Overview section">Overview ▹</h2>
+			</div>
+			<div class="expanded">
+				<h2 class="toggleButton" title="Click to hide Overview section">Overview ▾</h2>
+				
+			</div>
+		</div>
+		
+
+		<div id="pkg-index" class="toggleVisible">
+		<div class="collapsed">
+			<h2 class="toggleButton" title="Click to show Index section">Index ▹</h2>
+		</div>
+		<div class="expanded">
+			<h2 class="toggleButton" title="Click to hide Index section">Index ▾</h2>
+
+		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
+			<div id="manual-nav">
+			<dl>
+			
+			
+				<dd><a href="#pkg-variables">Variables</a></dd>
+			
+			
+				
+				<dd><a href="#CopyPostings">func CopyPostings(src []int) (postings []int)</a></dd>
+			
+				
+				<dd><a href="#IntersectPostings">func IntersectPostings(srcA []int, srcB []int) (postings []int)</a></dd>
+			
+				
+				<dd><a href="#ReadNormalized">func ReadNormalized(r io.Reader) io.Reader</a></dd>
+			
+				
+				<dd><a href="#ServeDocuments">func ServeDocuments(docs JsonDocuments) http.HandlerFunc</a></dd>
+			
+				
+				<dd><a href="#ServeRawBytes">func ServeRawBytes(raw []byte) http.HandlerFunc</a></dd>
+			
+				
+				<dd><a href="#ServeSearch">func ServeSearch(index Index) http.HandlerFunc</a></dd>
+			
+				
+				<dd><a href="#SortDedupPostings">func SortDedupPostings(src []int) (postings []int)</a></dd>
+			
+				
+				<dd><a href="#TokenizeForSearch">func TokenizeForSearch(query string) (tokens []string, incomplete_token string)</a></dd>
+			
+			
+				
+				<dd><a href="#Edge">type Edge</a></dd>
+				
+				
+			
+				
+				<dd><a href="#Index">type Index</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#NewIndex">func NewIndex(reader io.Reader) (index Index, rawIdex []byte, err error)</a></dd>
+				
+				
+			
+				
+				<dd><a href="#IndexBuilder">type IndexBuilder</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#NewIndexBuilder">func NewIndexBuilder() IndexBuilder</a></dd>
+				
+				
+			
+				
+				<dd><a href="#JsonDocuments">type JsonDocuments</a></dd>
+				
+				
+			
+				
+				<dd><a href="#Node">type Node</a></dd>
+				
+				
+			
+				
+				<dd><a href="#TrieBuilder">type TrieBuilder</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#NewTrieBuilder">func NewTrieBuilder() TrieBuilder</a></dd>
+				
+				
+			
+				
+				<dd><a href="#TrieReader">type TrieReader</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#NewTrieReader">func NewTrieReader(bytes_ []byte) (trieReader *TrieReader, node Node, err error)</a></dd>
+				
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.EnterNode">func (t *TrieReader) EnterNode(edge Edge) (node Node, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.JumpNode">func (t *TrieReader) JumpNode(node Node) (err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.Match">func (t *TrieReader) Match(term string) (node Node, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.ReadAllEdges">func (t *TrieReader) ReadAllEdges() (edges []Edge, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.ReadAllPostings">func (t *TrieReader) ReadAllPostings() (postings []int, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.ReadAllPostingsRecursive">func (t *TrieReader) ReadAllPostingsRecursive() (postings []int, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.ReadEdge">func (t *TrieReader) ReadEdge() (edge Edge, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.ReadPosting">func (t *TrieReader) ReadPosting() (posting int, err error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#TrieReader.Reset">func (t *TrieReader) Reset() (_ Node, _ error)</a></dd>
+				
+			
+			
+			</dl>
+			</div><!-- #manual-nav -->
+
+		
+
+		
+			<h4>Package files</h4>
+			<p>
+			<span style="font-size:90%">
+			
+				<a href="/src/github.com/rressi/smartsearch/http_handlers.go">http_handlers.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/index.go">index.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/indexbuilder.go">indexbuilder.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/normalizer.go">normalizer.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/postings.go">postings.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/tokenizer.go">tokenizer.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/triebuilder.go">triebuilder.go</a>
+			
+				<a href="/src/github.com/rressi/smartsearch/triereader.go">triereader.go</a>
+			
+			</span>
+			</p>
+		
+		</div><!-- .expanded -->
+		</div><!-- #pkg-index -->
+
+		<div id="pkg-callgraph" class="toggle" style="display: none">
+		<div class="collapsed">
+			<h2 class="toggleButton" title="Click to show Internal Call Graph section">Internal call graph ▹</h2>
+		</div> <!-- .expanded -->
+		<div class="expanded">
+			<h2 class="toggleButton" title="Click to hide Internal Call Graph section">Internal call graph ▾</h2>
+			<p>
+			  In the call graph viewer below, each node
+			  is a function belonging to this package
+			  and its children are the functions it
+			  calls&mdash;perhaps dynamically.
+			</p>
+			<p>
+			  The root nodes are the entry points of the
+			  package: functions that may be called from
+			  outside the package.
+			  There may be non-exported or anonymous
+			  functions among them if they are called
+			  dynamically from another package.
+			</p>
+			<p>
+			  Click a node to visit that function's source code.
+			  From there you can visit its callers by
+			  clicking its declaring <code>func</code>
+			  token.
+			</p>
+			<p>
+			  Functions may be omitted if they were
+			  determined to be unreachable in the
+			  particular programs or tests that were
+			  analyzed.
+			</p>
+			<!-- Zero means show all package entry points. -->
+			<ul style="margin-left: 0.5in" id="callgraph-0" class="treeview"></ul>
+		</div>
+		</div> <!-- #pkg-callgraph -->
+
+		
+		
+			<h2 id="pkg-variables">Variables</h2>
+			
+				<pre>var <span id="OutOfBounds">OutOfBounds</span> = <a href="/pkg/errors/">errors</a>.<a href="/pkg/errors/#New">New</a>(&#34;Offset out of bound&#34;)</pre>
+				<p>
+This error is returned when a passed offset is invalid.
+</p>
+
+			
+		
+		
+			
+			
+			<h2 id="CopyPostings">func <a href="/src/target/postings.go?s=98:143#L1">CopyPostings</a></h2>
+			<pre>func CopyPostings(src []<a href="/pkg/builtin/#int">int</a>) (postings []<a href="/pkg/builtin/#int">int</a>)</pre>
+			<p>
+It just clones one sequence of postings into new one.
+</p>
+
+			
+			
+
+		
+			
+			
+			<h2 id="IntersectPostings">func <a href="/src/target/postings.go?s=863:926#L33">IntersectPostings</a></h2>
+			<pre>func IntersectPostings(srcA []<a href="/pkg/builtin/#int">int</a>, srcB []<a href="/pkg/builtin/#int">int</a>) (postings []<a href="/pkg/builtin/#int">int</a>)</pre>
+			<p>
+It takes 2 sorted and deduplicated sequences of postings and generates a new
+sorted and deduplicated sequence that contains postings found in both
+original sequences.
+</p>
+
+			
+			
+
+		
+			
+			
+			<h2 id="ReadNormalized">func <a href="/src/target/normalizer.go?s=199:241#L3">ReadNormalized</a></h2>
+			<pre>func ReadNormalized(r <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a>) <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a></pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="ServeDocuments">func <a href="/src/target/http_handlers.go?s=112:168#L3">ServeDocuments</a></h2>
+			<pre>func ServeDocuments(docs <a href="#JsonDocuments">JsonDocuments</a>) <a href="/pkg/net/http/">http</a>.<a href="/pkg/net/http/#HandlerFunc">HandlerFunc</a></pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="ServeRawBytes">func <a href="/src/target/http_handlers.go?s=3205:3252#L146">ServeRawBytes</a></h2>
+			<pre>func ServeRawBytes(raw []<a href="/pkg/builtin/#byte">byte</a>) <a href="/pkg/net/http/">http</a>.<a href="/pkg/net/http/#HandlerFunc">HandlerFunc</a></pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="ServeSearch">func <a href="/src/target/http_handlers.go?s=1573:1619#L69">ServeSearch</a></h2>
+			<pre>func ServeSearch(index <a href="#Index">Index</a>) <a href="/pkg/net/http/">http</a>.<a href="/pkg/net/http/#HandlerFunc">HandlerFunc</a></pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="SortDedupPostings">func <a href="/src/target/postings.go?s=347:397#L7">SortDedupPostings</a></h2>
+			<pre>func SortDedupPostings(src []<a href="/pkg/builtin/#int">int</a>) (postings []<a href="/pkg/builtin/#int">int</a>)</pre>
+			<p>
+It takes a sequence of postings and generates a new one that is obtained
+after sorting and deduplicating them.
+</p>
+
+			
+			
+
+		
+			
+			
+			<h2 id="TokenizeForSearch">func <a href="/src/target/tokenizer.go?s=402:482#L8">TokenizeForSearch</a></h2>
+			<pre>func TokenizeForSearch(query <a href="/pkg/builtin/#string">string</a>) (tokens []<a href="/pkg/builtin/#string">string</a>,
+    incomplete_token <a href="/pkg/builtin/#string">string</a>)</pre>
+			<p>
+Given a free text, produces normalized tokens.
+</p>
+<p>
+If last character of the passed input was a valid one then considers as
+potentially incomplete it and returns it apart.
+</p>
+<p>
+It returns:
+- all complete tokens, sorted and deduplicated.
+- optionally the las token a part if it was considered to be potentially
+</p>
+<pre>incomplete.
+</pre>
+
+			
+			
+
+		
+		
+			
+			
+			<h2 id="Edge">type <a href="/src/target/triereader.go?s=169:318#L3">Edge</a></h2>
+			<pre>type Edge struct {
+    Rune <a href="/pkg/builtin/#rune">rune</a> <span class="comment">// UNICODE code point associated with this edge</span>
+    <span class="comment">// contains filtered or unexported fields</span>
+}</pre>
+			<p>
+It represents a trie edge as it have been decoded by an instance of
+TrieReader
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="Index">type <a href="/src/target/index.go?s=106:425#L1">Index</a></h2>
+			<pre>type Index interface {
+
+    <span class="comment">// Given the passed query, it searches it inside the index and returns all the</span>
+    <span class="comment">// postings of matching documents.</span>
+    <span class="comment">//</span>
+    <span class="comment">// It returns:</span>
+    <span class="comment">// - postings of matching documents, sorted and deduplicated.</span>
+    <span class="comment">// - an error in case of failure</span>
+    Search(query <a href="/pkg/builtin/#string">string</a>, limit <a href="/pkg/builtin/#int">int</a>) (postings []<a href="/pkg/builtin/#int">int</a>, err <a href="/pkg/builtin/#error">error</a>)
+}</pre>
+			<p>
+An interface to search using pre-build indices.
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="NewIndex">func <a href="/src/target/index.go?s=632:704#L18">NewIndex</a></h3>
+				<pre>func NewIndex(reader <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a>) (index <a href="#Index">Index</a>, rawIdex []<a href="/pkg/builtin/#byte">byte</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+Given the passed io.Reader, loads an index previously generated with
+IndexBuilder.
+</p>
+<p>
+It returns:
+- the newly created index.
+- the bytes containing the read index.
+- an error on failure.
+</p>
+
+				
+				
+			
+
+			
+		
+			
+			
+			<h2 id="IndexBuilder">type <a href="/src/target/indexbuilder.go?s=262:2415#L4">IndexBuilder</a></h2>
+			<pre>type IndexBuilder interface {
+
+    <span class="comment">// It indexes a document, given an unique id and its content.</span>
+    <span class="comment">//</span>
+    <span class="comment">// If the same id is used many times it consider the passed content as part</span>
+    <span class="comment">// of the same document.</span>
+    AddDocument(id <a href="/pkg/builtin/#int">int</a>, content <a href="/pkg/builtin/#string">string</a>) <a href="/pkg/builtin/#error">error</a>
+
+    <span class="comment">// It indexes a JSON document.</span>
+    <span class="comment">//</span>
+    <span class="comment">// Parameters:</span>
+    <span class="comment">// - jsonDocument:  JSON document&#39;s bytes.</span>
+    <span class="comment">// - idField:       JSON attribute for the unique id.</span>
+    <span class="comment">// - contentFields: JSON attributes for the content to be indexed.</span>
+    <span class="comment">//</span>
+    <span class="comment">// Return:</span>
+    <span class="comment">// - id:  The document id as it have extracted from the JSON document.</span>
+    <span class="comment">// - err: An error in case of failure (in such case id is zero).</span>
+    <span class="comment">//</span>
+    <span class="comment">// Notes:</span>
+    <span class="comment">// - the root object must be a dictionary</span>
+    <span class="comment">// - it can access only to values of the root object.</span>
+    <span class="comment">// - the unique id must be a positive integer, it is OK if it have been</span>
+    <span class="comment">//   encoded as a string.</span>
+    <span class="comment">// - if the same id is used many times it consider the passed content as</span>
+    <span class="comment">//   part of the same document.</span>
+    AddJsonDocument(jsonDocument []<a href="/pkg/builtin/#byte">byte</a>, idField <a href="/pkg/builtin/#string">string</a>,
+        contentFields []<a href="/pkg/builtin/#string">string</a>) (id <a href="/pkg/builtin/#int">int</a>, err <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// Applies method AddJsonDocument on all lines read from the passed</span>
+    <span class="comment">// io.Reader.</span>
+    <span class="comment">//</span>
+    <span class="comment">// Return:</span>
+    <span class="comment">// - numLines: Number of lines parsed.</span>
+    <span class="comment">// - err:      An error in case of failure.</span>
+    <span class="comment">//</span>
+    <span class="comment">// Notes:</span>
+    <span class="comment">// - it stops at the first failure.</span>
+    <span class="comment">// - if the same id is used many times it consider the passed content as</span>
+    <span class="comment">//   part of the same document.</span>
+    IndexJsonStream(reader <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a>, idField <a href="/pkg/builtin/#string">string</a>, contentFields []<a href="/pkg/builtin/#string">string</a>) (
+        numLines <a href="/pkg/builtin/#int">int</a>, err <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// Applies method AddJsonDocument on all lines read from the passed</span>
+    <span class="comment">// io.Reader and also returns a map mapping the document id with its raw</span>
+    <span class="comment">// content.</span>
+    <span class="comment">//</span>
+    <span class="comment">// Return:</span>
+    <span class="comment">// - documents: A map id -&gt; JSON bytes from the processed documents</span>
+    <span class="comment">// - err:       An error in case of failure (in such case documents is nil).</span>
+    <span class="comment">//</span>
+    <span class="comment">// Notes:</span>
+    <span class="comment">// - it stops at the first failure.</span>
+    <span class="comment">// - if the same id is used many times it fails.</span>
+    LoadAndIndexJsonStream(reader <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a>, idField <a href="/pkg/builtin/#string">string</a>,
+        contentFields []<a href="/pkg/builtin/#string">string</a>) (documents <a href="#JsonDocuments">JsonDocuments</a>, err <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// Generates a blob from all indexed documents and writes it to the passed</span>
+    <span class="comment">// io.Writer.</span>
+    Dump(writer <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Writer">Writer</a>) <a href="/pkg/builtin/#error">error</a>
+}</pre>
+			<p>
+IndexBuilder is a component that collects documents to generate one index
+that it allow to dump in a space-efficient blob that component Index is
+able to use for search.
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="NewIndexBuilder">func <a href="/src/target/indexbuilder.go?s=2448:2483#L67">NewIndexBuilder</a></h3>
+				<pre>func NewIndexBuilder() <a href="#IndexBuilder">IndexBuilder</a></pre>
+				<p>
+Creates a new IndexBuilder.
+</p>
+
+				
+				
+			
+
+			
+		
+			
+			
+			<h2 id="JsonDocuments">type <a href="/src/target/indexbuilder.go?s=4588:4621#L172">JsonDocuments</a></h2>
+			<pre>type JsonDocuments map[<a href="/pkg/builtin/#int">int</a>][]<a href="/pkg/builtin/#byte">byte</a></pre>
+			<p>
+A map document id -&gt; JSON bytes.
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="Node">type <a href="/src/target/triereader.go?s=636:901#L14">Node</a></h2>
+			<pre>type Node struct {
+    NumPostings <a href="/pkg/builtin/#int">int</a> <span class="comment">// Number of postings contained by the node</span>
+    NumEdges    <a href="/pkg/builtin/#int">int</a> <span class="comment">// Number of edges departing from this node</span>
+    <span class="comment">// contains filtered or unexported fields</span>
+}</pre>
+			<p>
+It represents a trie node as it have been decoded by an instance of
+TrieReader.
+</p>
+<p>
+The content of this structure can be stored for later usage and given one
+binary index nodes are universally consistent. They can be marshaled and
+stored on files or passed between different services without problems.
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="TrieBuilder">type <a href="/src/target/triebuilder.go?s=178:575#L3">TrieBuilder</a></h2>
+			<pre>type TrieBuilder interface {
+
+    <span class="comment">// Add one term to the trie to build, and associates it to one posting.</span>
+    <span class="comment">//</span>
+    <span class="comment">// The passed posting should be strictly positive.</span>
+    <span class="comment">//</span>
+    <span class="comment">// If term is an empty string then the posting is added to the root node.</span>
+    Add(posting <a href="/pkg/builtin/#int">int</a>, term <a href="/pkg/builtin/#string">string</a>)
+
+    <span class="comment">// Generates a trie and serializes to the passed io.Writer.</span>
+    <span class="comment">//</span>
+    <span class="comment">// It returns error on failures.</span>
+    Dump(dst <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Writer">Writer</a>) <a href="/pkg/builtin/#error">error</a>
+}</pre>
+			<p>
+A TrieBuilder is a tool that can be used to generate binary encoded tries
+for TrieReader.
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="NewTrieBuilder">func <a href="/src/target/triebuilder.go?s=4487:4520#L204">NewTrieBuilder</a></h3>
+				<pre>func NewTrieBuilder() <a href="#TrieBuilder">TrieBuilder</a></pre>
+				<p>
+Creates a new TrieBuilder.
+</p>
+
+				
+				
+			
+
+			
+		
+			
+			
+			<h2 id="TrieReader">type <a href="/src/target/triereader.go?s=1495:1726#L35">TrieReader</a></h2>
+			<pre>type TrieReader struct {
+    <span class="comment">// contains filtered or unexported fields</span>
+}</pre>
+			<p>
+A structure containing the state of a trie reader.
+</p>
+<p>
+It can be cloned in order to have two state machines decoding and traversing
+the trie from the current position. Clones are completely independent.
+</p>
+<p>
+These readers are working as state machines that decode lazily the bytes
+while traversing the trie. No up-front decoding of postings and edges is
+performed.
+</p>
+<p>
+They can jump to one state to another to save CPU resources (methods
+JumpNode, EnterNode).
+</p>
+
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="NewTrieReader">func <a href="/src/target/triereader.go?s=2092:2173#L56">NewTrieReader</a></h3>
+				<pre>func NewTrieReader(bytes_ []<a href="/pkg/builtin/#byte">byte</a>) (trieReader *<a href="#TrieReader">TrieReader</a>, node <a href="#Node">Node</a>,
+    err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It creates a new TrieReader from the given bytes.
+</p>
+<p>
+Passed bytes are not changed by the created reader, just shared lazily
+decoded while traversing the trie. Changing this bytes may lead to undefined
+behaviour of the TrieReader.
+</p>
+<p>
+It returns:
+- the newly created TrieReader
+- information about its root node
+- an error in case of failure
+</p>
+
+				
+				
+			
+
+			
+				
+				<h3 id="TrieReader.EnterNode">func (*TrieReader) <a href="/src/target/triereader.go?s=12148:12212#L504">EnterNode</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) EnterNode(edge <a href="#Edge">Edge</a>) (node <a href="#Node">Node</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It uses edge information returned by ReadEdge, ReadAllEdges to enter targeted
+child node.
+</p>
+<p>
+It returns:
+- information about the entered node.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.JumpNode">func (*TrieReader) <a href="/src/target/triereader.go?s=4999:5051#L182">JumpNode</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) JumpNode(node <a href="#Node">Node</a>) (err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It sets this reader to the given node.
+</p>
+<p>
+It can be used to go back to a node that have already been processed. The
+content of a node may come from a cache or some storage. It works only if
+have been generated by a binary identical trie.
+</p>
+<p>
+It returns:
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.Match">func (*TrieReader) <a href="/src/target/triereader.go?s=12835:12897#L532">Match</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) Match(term <a href="/pkg/builtin/#string">string</a>) (node <a href="#Node">Node</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+Takes one term and traverses the trie from the current node matching all
+term&#39;s UNICODE code points in order.
+</p>
+<p>
+If during the traversal is not able to find one edge it returns a
+zeroed-node, this is not considered a failure but simply a negative match.
+</p>
+<p>
+It returns:
+- information about the final node.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.ReadAllEdges">func (*TrieReader) <a href="/src/target/triereader.go?s=11605:11666#L476">ReadAllEdges</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) ReadAllEdges() (edges []<a href="#Edge">Edge</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It decodes all remaining edges.
+</p>
+<p>
+An early call of this method inhibits reading of postings from the current
+node.
+</p>
+<p>
+Returned values can be used to enter the sub-node targeted by current edge.
+</p>
+<p>
+It returns:
+- information about the decoded edges in a single array, sorted by relative
+</p>
+<pre>UNICODE code point.
+</pre>
+<p>
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.ReadAllPostings">func (*TrieReader) <a href="/src/target/triereader.go?s=7255:7321#L281">ReadAllPostings</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) ReadAllPostings() (postings []<a href="/pkg/builtin/#int">int</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It decodes all remaining postings.
+</p>
+<p>
+If all postings have already been read it returns (nil, io.EOF).
+</p>
+<p>
+Postings are decoded after entering one node and before decoding edges.
+An early call of method ReadEdge inhibits this method.
+</p>
+<p>
+It returns:
+- all decoded posting in a sorted deduplicated array.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.ReadAllPostingsRecursive">func (*TrieReader) <a href="/src/target/triereader.go?s=8349:8425#L323">ReadAllPostingsRecursive</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) ReadAllPostingsRecursive() (postings []<a href="/pkg/builtin/#int">int</a>,
+    err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It decodes all remaining postings plus all the postings from all sub-nodes
+recursively.
+</p>
+<p>
+If all postings and edges have already been read it returns (nil, io.EOF).
+</p>
+<p>
+This method effectively consumes all remaining postings and edges of current
+node, the only things to do after it are:
+- jumping to another Node (method JumpNode).
+- entering in one node from one Edge returned previously (method EnterNode).
+- reset the reader to the root node (method Reset).
+</p>
+<p>
+It returns:
+- all decoded posting in a sorted deduplicated array.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.ReadEdge">func (*TrieReader) <a href="/src/target/triereader.go?s=10554:10608#L424">ReadEdge</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) ReadEdge() (edge <a href="#Edge">Edge</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It decodes one edge.
+</p>
+<p>
+An early call of this method inhibits reading of postings from the current
+node.
+</p>
+<p>
+Returned value can be used to enter the sub-node targeted by current edge.
+</p>
+<p>
+It returns:
+- information about the decoded edge.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.ReadPosting">func (*TrieReader) <a href="/src/target/triereader.go?s=6364:6423#L240">ReadPosting</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) ReadPosting() (posting <a href="/pkg/builtin/#int">int</a>, err <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It decodes next posting.
+</p>
+<p>
+When all postings have already been read it returns (0, io.EOF).
+</p>
+<p>
+Postings are decoded after entering one node and before decoding edges.
+An early call of method ReadEdge inhibits this method.
+</p>
+<p>
+It returns:
+- the decoded posting.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+				
+				<h3 id="TrieReader.Reset">func (*TrieReader) <a href="/src/target/triereader.go?s=2516:2562#L71">Reset</a></h3>
+				<pre>func (t *<a href="#TrieReader">TrieReader</a>) Reset() (_ <a href="#Node">Node</a>, _ <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>
+It resets the state of this reader so that it restarts from the root node.
+</p>
+<p>
+It is equivalent to create a new reader with the very same bytes.
+</p>
+<p>
+It returns:
+- information about the root node.
+- an error in case of failure.
+</p>
+
+				
+				
+				
+			
+		
+	
+
+	
+
+
+
+
+
