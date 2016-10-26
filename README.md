@@ -9,10 +9,9 @@ Our trie is encoded in a space efficient manner with the express purpose to
 allow us to have many of them placed in a blob storage (a DB, some archive
  files etc.).
  
-You can give a look to demonstrative web application 
-[smartsearch.cc](http://smartsearch.cc) just to have an idea to what you can 
-do with this framework. The code of it is on GitHub's repo called 
-[smartsearch-demo](https://github.com/rressi/smartsearch-demo).
+You can give a look to demonstrative web application:
+- [smartsearch.cc](http://smartsearch.cc) with related code 
+  [here](https://github.com/rressi/smartsearch-demo).
 
 
 ## Components
