@@ -7,6 +7,7 @@ It is a tool that takes JSON streams like the following:
 {"i":2, "t":"Another title", "c":"More content..."}
 ...
 ```
+
 And is able to generate one single index if executed in this way:
 
 ```sh
@@ -23,7 +24,7 @@ zcat inputstream.txt.gz | makeindex -id i -content t,c > output.idx
 ## Command line usage
 
 ```sh
-$ ./makeindex -h
+$ ./makeindex.exe --help
 Usage of makeindex:
   -content string
         Json attributes to be indexed, comma separated (default "content")

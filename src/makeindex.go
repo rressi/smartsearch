@@ -1,15 +1,18 @@
 package main
 
+// Please read 'doc/makeindex.md' to know more about this tool.
+
 import (
-	"bufio"
 	"flag"
-	"fmt"
-	"github.com/rressi/smartsearch"
-	"io"
 	"os"
+	"fmt"
+	"io"
+	"bufio"
+	"github.com/rressi/smartsearch"
 	"strings"
 )
 
+// Executable's main function.
 func main() {
 	var err error
 
@@ -28,6 +31,18 @@ func main() {
 	runMakeIndex(*inputFile, *outputFile, *jsonId, *jsonContents)
 }
 
+// Takes as input a file with a stream of JSON documents and generates an index
+// that it saves on an output file.
+//
+// Parameters:
+// - inputFile:    A text file containing a stream of JSON documents, one per
+//   line.
+// - outputFile:   Target file where a binary index to be generated and dumped.
+// - jsonId:       Attribute from the JSON document containing an id that is
+//                 unique and mandatory for each document.
+// - jsonContents: A list of top level attributes in each document whose
+//                 values need to be indexed. It is ok if a document miss
+//                 some or all of this attributes.
 func runMakeIndex(
 	inputFile string,
 	outputFile string,
