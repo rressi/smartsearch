@@ -15,7 +15,6 @@ import (
 	"strings"
 )
 
-
 // Executable's main function.
 func main() {
 
@@ -83,15 +82,13 @@ func main() {
 	}
 }
 
-
 // Encapsulates the main context of our service.
 type AppContext struct {
-	docs            smartsearch.JsonDocuments  // Maps ids to documents.
-	rawIndex        []byte                     // The index in binary format.
-	index           smartsearch.Index          // The index as a live object.
-	staticAppFolder string                     // An fs folder to be served.
+	docs            smartsearch.JsonDocuments // Maps ids to documents.
+	rawIndex        []byte                    // The index in binary format.
+	index           smartsearch.Index         // The index as a live object.
+	staticAppFolder string                    // An fs folder to be served.
 }
-
 
 // Loads all the JSON documents found in a file and indexes them.
 //
@@ -213,7 +210,7 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 	http.HandleFunc("/search", smartsearch.ServeSearch(ctx.index))
 	http.HandleFunc("/rawIndex", smartsearch.ServeRawBytes(ctx.rawIndex))
 	if ctx.docs != nil {
-		http.HandleFunc("/docs", smartsearch.ServeDocuments(ctx.docs))
+		http.Handle("/docs", smartsearch.ServeDocuments(ctx.docs))
 	}
 	if ctx.staticAppFolder != "" {
 		http.Handle("/app/", http.StripPrefix("/app/",

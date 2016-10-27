@@ -4,74 +4,78 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
-func ServeDocuments(docs JsonDocuments) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ServeDocuments(docs JsonDocuments) http.Handler {
+	baseHandler := http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
 
-		var httpError = http.StatusInternalServerError
-		var err error
-		defer func() {
+			var httpError = http.StatusInternalServerError
+			var err error
+			defer func() {
+				if err != nil {
+					fmt.Printf("Error: ServeDocuments: %v\n", err)
+					err = fmt.Errorf("ServeDocuments: %v", err)
+					if httpError != 0 {
+						w.WriteHeader(httpError)
+					}
+				}
+			}()
+
+			var values map[string][]string
+			values, err = url.ParseQuery(r.URL.RawQuery)
 			if err != nil {
-				fmt.Printf("Error: ServeDocuments: %v\n", err)
-				err = fmt.Errorf("ServeDocuments: %v", err)
-				if httpError != 0 {
-					w.WriteHeader(httpError)
+				httpError = http.StatusBadRequest
+				return
+			}
+
+			idsValues, idsOk := values["ids"]
+			if !idsOk || len(idsValues) == 0 {
+				httpError = http.StatusBadRequest
+				err = errors.New("Missing parameter 'ids'")
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			httpError = 0 // Done!
+			for _, ids := range idsValues {
+				for _, idRaw := range strings.Split(ids, " ") {
+					var id int
+					id, err = strconv.Atoi(idRaw)
+					if err != nil {
+						err = fmt.Errorf("non numeric id: '%v'", idRaw)
+						httpError = http.StatusBadRequest
+						return
+					}
+
+					var rawDocument []byte
+					rawDocument, idsOk = docs[id]
+					if !idsOk {
+						httpError = http.StatusNotFound
+						err = fmt.Errorf("invalid documente id: %v", id)
+						return
+					}
+
+					_, err = w.Write(rawDocument)
+					if err != nil {
+						return
+					}
+
+					_, err = w.Write([]byte{'\n'})
+					if err != nil {
+						return
+					}
 				}
 			}
-		}()
+		})
 
-		var values map[string][]string
-		values, err = url.ParseQuery(r.URL.RawQuery)
-		if err != nil {
-			httpError = http.StatusBadRequest
-			return
-		}
-
-		idsValues, idsOk := values["ids"]
-		if !idsOk || len(idsValues) == 0 {
-			httpError = http.StatusBadRequest
-			err = errors.New("Missing parameter 'ids'")
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		httpError = 0 // Done!
-		for _, ids := range idsValues {
-			for _, idRaw := range strings.Split(ids, " ") {
-				var id int
-				id, err = strconv.Atoi(idRaw)
-				if err != nil {
-					err = fmt.Errorf("non numeric id: '%v'", idRaw)
-					httpError = http.StatusBadRequest
-					return
-				}
-
-				var rawDocument []byte
-				rawDocument, idsOk = docs[id]
-				if !idsOk {
-					httpError = http.StatusNotFound
-					err = fmt.Errorf("invalid documente id: %v", id)
-					return
-				}
-
-				_, err = w.Write(rawDocument)
-				if err != nil {
-					return
-				}
-
-				_, err = w.Write([]byte{'\n'})
-				if err != nil {
-					return
-				}
-			}
-		}
-
-	}
+	// Whe never it is possible, we add transparent compression:
+	return gziphandler.GzipHandler(baseHandler)
 }
 
 // -----------------------------------------------------------------------------

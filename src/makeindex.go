@@ -3,12 +3,12 @@ package main
 // Please read 'doc/makeindex.md' to know more about this tool.
 
 import (
-	"flag"
-	"os"
-	"fmt"
-	"io"
 	"bufio"
+	"flag"
+	"fmt"
 	"github.com/rressi/smartsearch"
+	"io"
+	"os"
 	"strings"
 )
 

@@ -1,9 +1,9 @@
 .idea/
 /pkg/
 /src/golang.org/
+/src/github.com/NYTimes/
 /test/test_*/
 
 *.exe
 /makeindex
 /searchservice
-
