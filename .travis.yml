@@ -7,4 +7,9 @@ go:
 python:
   - 3.5
 
-script: bash test.sh
+install:
+  - go get golang.org/x/text
+  - go get github.com/NYTimes/gziphandler
+
+script:
+  - go test github.com/rressi/smartsearch
