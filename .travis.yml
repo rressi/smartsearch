@@ -8,7 +8,7 @@ python:
   - 3.5
 
 env:
-  - GOPATH=.
+  - GOPATH=/home/travis/gopath/src/github.com/rressi/smartsearch
 
 install:
   - go get golang.org/x/text
