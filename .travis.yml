@@ -2,17 +2,10 @@ language: go
 
 go:
   - 1.6
-  - 1.7
-
-python:
-  - 3.5
-
-env:
-  - GOPATH=/home/travis/gopath/src/github.com/rressi/smartsearch
 
 install:
   - go get golang.org/x/text
   - go get github.com/NYTimes/gziphandler
 
 script:
-  - go test github.com/rressi/smartsearch
+  - GOPATH=$(pwd):$GOPATH go test github.com/rressi/smartsearch
