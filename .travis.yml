@@ -1,11 +1,11 @@
-language: go
+language: python
 
-go:
-  - 1.6
+python:
+  - 3.5
 
 install:
-  - go get golang.org/x/text
-  - go get github.com/NYTimes/gziphandler
+  - sudo apt-get install golang
+  - ./init.sh
 
 script:
-  - GOPATH=$(pwd):$GOPATH go test github.com/rressi/smartsearch
+  - ./test.sh
