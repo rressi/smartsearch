@@ -7,6 +7,9 @@ go:
 python:
   - 3.5
 
+env:
+  - GOPATH=.
+
 install:
   - go get golang.org/x/text
   - go get github.com/NYTimes/gziphandler
