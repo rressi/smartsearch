@@ -4,82 +4,96 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/NYTimes/gziphandler"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
+// Creates an http.Handler to serve the passed collection of JSON documents.
+//
+// Passed collection is a map with the document uuid as a key (integer) and
+// the raw JSON content to return as value.
+//
+// The web API exposed by the created web server expects to have the following
+// parameters:
+// ids: it is mandatory and a space separated list of document uuid.
+//
+// The handle returns as a content one text file with one document per line
+// encoded in JSON format (the same raw bytes of the passed collection of
+// documents passed originally).
+//
+// Returned documents are the same requested with web parameter ids, in the very
+// same order. Repeating many times the same ids just means to have the same
+// document returned more than once.
+//
+// If one document uuid is not valid the web request fails.
 func ServeDocuments(docs JsonDocuments) http.Handler {
-	baseHandler := http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			var httpError = http.StatusInternalServerError
-			var err error
-			defer func() {
-				if err != nil {
-					fmt.Printf("Error: ServeDocuments: %v\n", err)
-					err = fmt.Errorf("ServeDocuments: %v", err)
-					if httpError != 0 {
-						w.WriteHeader(httpError)
-					}
-				}
-			}()
-
-			var values map[string][]string
-			values, err = url.ParseQuery(r.URL.RawQuery)
+		var httpError = http.StatusInternalServerError
+		var err error
+		defer func() {
 			if err != nil {
-				httpError = http.StatusBadRequest
-				return
-			}
-
-			idsValues, idsOk := values["ids"]
-			if !idsOk || len(idsValues) == 0 {
-				httpError = http.StatusBadRequest
-				err = errors.New("Missing parameter 'ids'")
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-			httpError = 0 // Done!
-			for _, ids := range idsValues {
-				for _, idRaw := range strings.Split(ids, " ") {
-					var id int
-					id, err = strconv.Atoi(idRaw)
-					if err != nil {
-						err = fmt.Errorf("non numeric id: '%v'", idRaw)
-						httpError = http.StatusBadRequest
-						return
-					}
-
-					var rawDocument []byte
-					rawDocument, idsOk = docs[id]
-					if !idsOk {
-						httpError = http.StatusNotFound
-						err = fmt.Errorf("invalid documente id: %v", id)
-						return
-					}
-
-					_, err = w.Write(rawDocument)
-					if err != nil {
-						return
-					}
-
-					_, err = w.Write([]byte{'\n'})
-					if err != nil {
-						return
-					}
+				fmt.Printf("Error: ServeDocuments: %v\n", err)
+				err = fmt.Errorf("ServeDocuments: %v", err)
+				if httpError != 0 {
+					w.WriteHeader(httpError)
 				}
 			}
-		})
+		}()
 
-	// Whe never it is possible, we add transparent compression:
-	return gziphandler.GzipHandler(baseHandler)
+		var values map[string][]string
+		values, err = url.ParseQuery(r.URL.RawQuery)
+		if err != nil {
+			httpError = http.StatusBadRequest
+			return
+		}
+
+		idsValues, idsOk := values["ids"]
+		if !idsOk || len(idsValues) == 0 {
+			httpError = http.StatusBadRequest
+			err = errors.New("Missing parameter 'ids'")
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		httpError = 0 // Done!
+		for _, ids := range idsValues {
+			for _, idRaw := range strings.Split(ids, " ") {
+				var id int
+				id, err = strconv.Atoi(idRaw)
+				if err != nil {
+					err = fmt.Errorf("non numeric id: '%v'", idRaw)
+					httpError = http.StatusBadRequest
+					return
+				}
+
+				var rawDocument []byte
+				rawDocument, idsOk = docs[id]
+				if !idsOk {
+					httpError = http.StatusNotFound
+					err = fmt.Errorf("invalid documente id: %v", id)
+					return
+				}
+
+				_, err = w.Write(rawDocument)
+				if err != nil {
+					return
+				}
+
+				_, err = w.Write([]byte{'\n'})
+				if err != nil {
+					return
+				}
+			}
+		}
+	})
 }
 
 // -----------------------------------------------------------------------------
 
+// Creates an http.Handler to search using the given index.
 func ServeSearch(index Index) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"github.com/rressi/smartsearch"
 	"io"
 	"net/http"
@@ -210,7 +211,9 @@ func RunSearchService(ctx AppContext, httpHostName string, httpPort uint) (
 	http.HandleFunc("/search", smartsearch.ServeSearch(ctx.index))
 	http.HandleFunc("/rawIndex", smartsearch.ServeRawBytes(ctx.rawIndex))
 	if ctx.docs != nil {
-		http.Handle("/docs", smartsearch.ServeDocuments(ctx.docs))
+		docsHandler := smartsearch.ServeDocuments(ctx.docs)
+		http.Handle("/docs", docsHandler)
+		http.Handle("/docs.gz", gziphandler.GzipHandler(docsHandler))
 	}
 	if ctx.staticAppFolder != "" {
 		http.Handle("/app/", http.StripPrefix("/app/",
