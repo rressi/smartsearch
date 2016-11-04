@@ -53,8 +53,8 @@ the near future.
 ## Method `/docs`
 
 If the tool is launched with a file containing a stream of documents as an 
-input it is able to create an index at startup and then serving either the
-method `/search` either a new method `/docs`.
+input it is able to create an index at startup and then serve in addition 
+method `/docs`.
 
 ```sh
 $ searchservice -p 5000 -d documents.txt -id i -content c,t
