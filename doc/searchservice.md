@@ -71,16 +71,29 @@ Note that:
 - *searchservice* requires a field with unique ids. This ids must be strictly
   positive integers.
 - *searchservice* with method `/docs` is giving back the documents in lines that
-  are binary identical to the ones found ont the original source.
+  are binary identical to the ones found on the original source. There are no
+  problems serving documents with a complex structures (the only limit is that 
+  nested content cannot be indexed for search).
 
-Method `/docs` just get one parameter:
+Method `/docs` by default returns all documents sorted by document id:
 
 ```sh
-$ wget -o - http://localhost:5000/docs?ids=1+45+47
+$ wget -o - http://localhost:5000/docs
 {"i"=1,"t"="Index this title please","c"="Some other content to index"}
 {"i"=45,"t"="Index this other title please","c"="...again content to index"}
 {"i"=47,"t"="Index this other title please","c"="...again content to index"}
 ```
+
+The following optional arguments can be used:
+- `ids`: a space separated list of document ids. If passed it will return 
+  only selected documents in the very same order as the passed list. 
+  Repetitions in the list are allowed and would return the same document more 
+  than once.
+- `l`: a numerical positive value to limit the documents to be returned.
+
+
+An identical method `/docs.gz` exists that works identically to `/docs` but 
+adds `gzip` compression on top of all returned bytes.
 
 
 ## Method `/app`
