@@ -1,3 +1,4 @@
+import concurrent.futures as futures
 import json
 import itertools
 import os
@@ -64,6 +65,8 @@ BULK_DOCUMENTS = [
     1210, 1212, 1214, 1215, 1216, 1217, 1218, 1222, 1223, 1226, 1233, 1234,
     1235, 1236, 1237, 1238]
 
+HTTP_PORT = 5987
+
 
 def main():
 
@@ -88,37 +91,85 @@ def main():
                                 "-id", "uuid",
                                 "-content", CONTENT_FIELDS,
                                 "-n", "localhost",
-                                "-p", "5987"])
+                                "-p", str(HTTP_PORT)])
         failures = 0
         time.sleep(2.0)
-        sample = random.sample(docs.items(), 10)
-        for doc_id, expected_content in sample:
-            try:
-                fetch_docs(5987, [doc_id], expected_content)
-            except:
-                failures += 1
-                traceback.print_exception(*sys.exc_info())
-                pass
 
-        sample = random.sample(docs.keys(), 4)
-        for doc_ids in itertools.combinations(sample, 2):
+        with futures.ThreadPoolExecutor(max_workers=32) as executor:
+            jobs = []
+
+            sample = random.sample(docs.items(), 10)
+            for use_gzip in [False, True]:
+                for doc_id, expected_content in sample:
+                    job = executor.submit(fetch_docs,
+                                          expected_content,
+                                          ids=[doc_id],
+                                          http_port=HTTP_PORT,
+                                          use_gzip=use_gzip)
+                    jobs.append(job)
+
+            sample = random.sample(docs.keys(), 4)
+            for use_gzip in [False, True]:
+                for doc_ids in itertools.combinations(sample, 2):
+                    expected_content = b"".join(docs[id_]
+                                                for id_ in doc_ids)
+                    job = executor.submit(fetch_docs,
+                                          expected_content,
+                                          ids=doc_ids,
+                                          http_port=HTTP_PORT,
+                                          use_gzip=use_gzip)
+                    jobs.append(job)
+
+            # Tests with a bulk set of documents:
             expected_content = b"".join(docs[id_]
-                                        for id_ in doc_ids)
-            try:
-                fetch_docs(5987, doc_ids, expected_content)
-            except:
-                failures += 1
-                traceback.print_exception(*sys.exc_info())
-                pass
+                                        for id_ in BULK_DOCUMENTS)
+            for use_gzip in [False, True]:
+                job = executor.submit(fetch_docs,
+                                      expected_content,
+                                      ids=BULK_DOCUMENTS,
+                                      http_port=HTTP_PORT,
+                                      use_gzip=use_gzip)
+                jobs.append(job)
 
-        expected_content = b"".join(docs[id_]
-                                    for id_ in BULK_DOCUMENTS)
-        try:
-            fetch_docs(5987, BULK_DOCUMENTS, expected_content)
-        except:
-            failures += 1
-            traceback.print_exception(*sys.exc_info())
-            pass
+            # Tests with a bulk set of documents and a limit:
+            expected_content = b"".join(docs[id_]
+                                        for id_ in BULK_DOCUMENTS[:10])
+            for use_gzip in [False, True]:
+                job = executor.submit(fetch_docs,
+                                      expected_content,
+                                      ids=BULK_DOCUMENTS,
+                                      limit=10,
+                                      http_port=HTTP_PORT,
+                                      use_gzip=use_gzip)
+                jobs.append(job)
+
+            # Testing with all the documents:
+            expected_content = b"".join(docs[id_]
+                                        for id_ in sorted(docs.keys()))
+            for use_gzip in [False, True]:
+                job = executor.submit(fetch_docs,
+                                      expected_content,
+                                      http_port=HTTP_PORT,
+                                      use_gzip=use_gzip)
+                jobs.append(job)
+
+            # Testing with all the documents but a limit of 1:
+            expected_content = b"".join(docs[id_]
+                                        for id_ in sorted(docs.keys())[:1])
+            for use_gzip in [False, True]:
+                job = executor.submit(fetch_docs,
+                                      expected_content,
+                                      limit=1,
+                                      http_port=HTTP_PORT,
+                                      use_gzip=use_gzip)
+                jobs.append(job)
+
+            for job in futures.as_completed(jobs):
+                try:
+                    job.result()
+                except:
+                    failures += 1
+                    pass
 
         assert failures == 0, "{} failures".format(failures)
 
@@ -129,19 +180,37 @@ def main():
     print("Success!")
 
 
-def fetch_docs(http_port, doc_ids, expected_content):
+def fetch_docs(expected_content,
+               ids=None,
+               limit=None,
+               http_port=3000,
+               use_gzip=False):
 
     http_query = None
 
     try:
-        quoted_ids = urllib.parse.quote_plus(" ".join(str(id_)
-                                                      for id_ in doc_ids))
-        http_query = "http://localhost:{}/docs?ids={}".format(http_port,
-                                                              quoted_ids)
-        print("get:", http_query)
+        encode_suffix = ".gz" if use_gzip else ''
+
+        arguments = []
+        if limit is not None:
+            arguments.append("l=" + str(limit))
+        if ids is not None:
+            arguments.append("ids=" + "+".join(map(str, ids)))
+
+        http_query = "http://localhost:{}/docs{}?{}"\
+                     .format(http_port, encode_suffix, "&".join(arguments))
+
+        description = "get: " + http_query
+        if len(description) > 77:
+            description = description[:77] + "..."
+        print(description)
+
         content = urllib.request.urlopen(http_query).read()
         assert content == expected_content
+
     except:
+        traceback.print_exception(*sys.exc_info())
+
         print("\nFAILED")
         print("ids:      [{}]".format(" ".join(str(id_)
                                                for id_ in doc_ids)))
