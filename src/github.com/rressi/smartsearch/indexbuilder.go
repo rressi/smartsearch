@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 )
 
 // IndexBuilder is a component that collects documents to generate one index
@@ -120,31 +121,48 @@ func (b *indexBuilderImpl) AddJsonDocument(jsonDocument []byte, idField string,
 		return
 	}
 
-	idRaw, ok := datum[idField]
+	var value interface{}
+	value, ok := datum[idField]
 	if !ok {
 		err = fmt.Errorf("document does not have ID field '%v' defined",
 			idField)
 		return
 	}
 
-	var id_ int
-	id_, err = strconv.Atoi(fmt.Sprint(idRaw))
+	var docId int
+	switch docId_ := value.(type) {
+	case int:
+		docId = docId_
+	case float64:
+		docId = int(docId_)
+	case string:
+		docId, err = strconv.Atoi(docId_)
+	}
 	if err != nil {
 		return
 	}
 
+	var content []string
 	for _, field := range contentFields {
-		content_, ok := datum[field]
+		value_, ok := datum[field]
 		if ok {
-			content := fmt.Sprint(content_)
-			err = b.AddDocument(id_, content)
-			if err != nil {
-				return
+			switch value := value_.(type) {
+			case string:
+				content = append(content, value)
+			case int:
+				content = append(content, fmt.Sprint(value))
 			}
 		}
 	}
 
-	id = id_
+	if len(content) > 0 {
+		err = b.AddDocument(docId, strings.Join(content, " "))
+		if err != nil {
+			return
+		}
+	}
+
+	id = docId
 	return
 }
 
