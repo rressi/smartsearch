@@ -27,15 +27,15 @@ type TrieBuilder interface {
 
 // A TrieBuilder's node used internally by its implementation.
 type trieNode struct {
-	edges    map[rune]*trieNode
-	postings map[int]int
+	edges            map[rune]*trieNode
+	postings         []int
+	appendedPostings int
 }
 
 // It creates a TrieBuilder's node.
 func newTrieNode() *trieNode {
 	node := new(trieNode)
 	node.edges = make(map[rune]*trieNode, 0)
-	node.postings = make(map[int]int, 0)
 	return node
 }
 
@@ -52,7 +52,8 @@ func (t *trieNode) Add(posting int, term string) {
 			node = childNode
 		}
 	}
-	node.postings[posting] += 1
+	node.postings = append(node.postings, posting)
+	node.appendedPostings += 1
 }
 
 // It implements TrieBuilder.Dump
@@ -72,6 +73,12 @@ func (t *trieNode) dumpRec(dst io.Writer) (sz int, err error) {
 	writeInt := func(dst io.Writer, value int) (sz int, err error) {
 		numBytes := binary.PutUvarint(tmp, uint64(value))
 		return dst.Write(tmp[:numBytes])
+	}
+
+	// Consolidates collected postings:
+	if len(t.postings) > 0 && t.appendedPostings > 0 {
+		t.postings = SortDedupPostings(t.postings)
+		t.appendedPostings = 0
 	}
 
 	var sz_ int
@@ -179,20 +186,21 @@ func (t *trieNode) dumpRec(dst io.Writer) (sz int, err error) {
 // It encodes all the postings associated to one TrieBuilder's node.
 func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 
-	// It fetches all the postings and sorts them:
-	postings := make([]int, len(t.postings))
-	i := 0
-	for posting := range t.postings {
-		postings[i] = posting
-		i++
+	if len(t.postings) == 0 {
+		return
 	}
-	sort.Ints(postings) // NOTE: they are already deduplicated.
+
+	// Consolidates collected postings:
+	if t.appendedPostings > 0 {
+		t.postings = SortDedupPostings(t.postings)
+		t.appendedPostings = 0
+	}
 
 	// Dumps all the postings:
 	var sz_ int
 	previousPosting := 0
 	tmp := make([]byte, 16)
-	for _, posting := range postings {
+	for _, posting := range t.postings {
 
 		// Serializes the increment of current posting:
 		numBytes := binary.PutUvarint(tmp, uint64(posting-previousPosting))
