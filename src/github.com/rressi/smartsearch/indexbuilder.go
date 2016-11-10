@@ -77,26 +77,34 @@ type IndexBuilder interface {
 // Creates a new IndexBuilder.
 func NewIndexBuilder() IndexBuilder {
 	b := new(indexBuilderImpl)
-	b.trie = NewTrieBuilder()
+	b.bulkData = make(map[string][]int)
 	return b
 }
 
-// Used to implement and IndexBuilder.
+// Used to implement an IndexBuilder.
 type indexBuilderImpl struct {
-	trie TrieBuilder
+	bulkData    map[string][]int
+	longestTerm int
+	trieBuilder TrieBuilder
 }
 
 // Implementation of IndexBuilder.AddDocument
 func (b *indexBuilderImpl) AddDocument(id int, content string) (_ error) {
 
-	terms, incomplete_term := TokenizeForSearch(content)
+	terms, incompleteTerm := TokenizeForSearch(content)
 
 	for _, term := range terms {
-		b.trie.Add(id, term)
+		if len(term) > b.longestTerm {
+			b.longestTerm = len(term)
+		}
+		b.bulkData[term] = append(b.bulkData[term], id)
 	}
 
-	if len(incomplete_term) > 0 {
-		b.trie.Add(id, incomplete_term)
+	if len(incompleteTerm) > 0 {
+		if len(incompleteTerm) > b.longestTerm {
+			b.longestTerm = len(incompleteTerm)
+		}
+		b.bulkData[incompleteTerm] = append(b.bulkData[incompleteTerm], id)
 	}
 
 	return
@@ -248,5 +256,16 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 
 // Implementation of IndexBuilder.Dump
 func (b *indexBuilderImpl) Dump(writer io.Writer) error {
-	return b.trie.Dump(writer)
+
+	if b.trieBuilder == nil {
+		b.trieBuilder = NewTrieBuilder()
+	}
+
+	if len(b.bulkData) > 0 {
+		b.trieBuilder.AddBulk(b.bulkData, b.longestTerm)
+		b.bulkData = make(map[string][]int)
+		b.longestTerm = 0
+	}
+
+	return b.trieBuilder.Dump(writer)
 }

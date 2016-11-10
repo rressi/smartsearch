@@ -12,12 +12,24 @@ import (
 // for TrieReader.
 type TrieBuilder interface {
 
-	// Add one term to the trie to build, and associates it to one posting.
+	// It adds one term to the trie to build, and associates it to one posting.
 	//
 	// The passed posting should be strictly positive.
 	//
 	// If term is an empty string then the posting is added to the root node.
 	Add(posting int, term string)
+
+	// It adds many terms at once together with their postings.
+	//
+	// Data is passed as a map of terms -> list of postings.
+	//
+	// A value that is greater or equal to the maximum number of runes contained
+	// inside the bulk data. For simplicity the maximum len of all the terms can
+	// be used being it greater or equal than the number of runes.
+	//
+	// If a term contains an empty string then the posting is added to the root
+	// node.
+	AddBulk(bulkData map[string][]int, requiredRunes int)
 
 	// Generates a trie and serializes to the passed io.Writer.
 	//
@@ -54,6 +66,53 @@ func (t *trieNode) Add(posting int, term string) {
 	}
 	node.postings = append(node.postings, posting)
 	node.appendedPostings += 1
+}
+
+// Implementation of TrieBuilder.AddBulk
+func (t *trieNode) AddBulk(bulkData map[string][]int, requiredRunes int) {
+
+	// We can get some performance by iterating the terms in alphabetical order:
+	var sortedTerms []string
+	for term := range bulkData {
+		sortedTerms = append(sortedTerms, term)
+	}
+	sort.Strings(sortedTerms)
+
+	// We need a stack of nodes and a stack of runes in order to be able to
+	// take advantage of the common prefixes that sorted terms have naturally:
+	nodes := make([]*trieNode, requiredRunes+1)
+	nodes[0] = t
+	runes := make([]rune, requiredRunes+1)
+	runes[0] = 0
+	currPosition := 0
+
+	// For each term in a sorted order:
+	for _, term := range sortedTerms {
+
+		// Walks to the target node starting from the last node sharing the
+		// same prefix with last one previous:
+		node := t
+		for i, rune_ := range term {
+			j := i + 1
+			if j <= currPosition && runes[j] == rune_ {
+				node = nodes[j] // Prefix match
+			} else {
+				currPosition = j // Prefix match stops here
+				runes[j] = rune_
+				var ok bool
+				node, ok = nodes[i].edges[rune_]
+				if !ok {
+					node = newTrieNode()
+					nodes[i].edges[rune_] = node
+				}
+				nodes[j] = node
+			}
+		}
+
+		postings := bulkData[term]
+		node.postings = append(node.postings, postings...)
+		node.appendedPostings += len(postings)
+	}
 }
 
 // It implements TrieBuilder.Dump
@@ -220,68 +279,7 @@ func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 
 // -----------------------------------------------------------------------------
 
-// Implementation of a trie builder.
-type trieBuilder struct {
-	root          *trieNode
-	requiredRunes int
-	terms         map[string][]int
-}
-
-// Implementation of TrieBuilder.Add
-func (b *trieBuilder) Add(posting int, term string) {
-	b.terms[term] = append(b.terms[term], posting)
-
-	requiredRunes := len(term)
-	if requiredRunes > b.requiredRunes {
-		b.requiredRunes = requiredRunes
-	}
-}
-
-// Implementation of TrieBuilder.Dump
-func (b *trieBuilder) Dump(dst io.Writer) error {
-
-	// Creates root node if needed:
-	if b.root == nil {
-		b.root = newTrieNode()
-	}
-
-	// Processes all pending terms:
-	if len(b.terms) > 0 {
-		nodes := make([]*trieNode, b.requiredRunes+1)
-		nodes[0] = b.root
-		runes := make([]rune, b.requiredRunes+1)
-		runes[0] = 0
-		currPosition := 0
-		for term, postings := range b.terms {
-			node := b.root
-			for i, rune_ := range term {
-				j := i + 1
-				if j <= currPosition && runes[j] == rune_ {
-					node = nodes[j]
-				} else {
-					runes[j] = rune_
-					var ok bool
-					node, ok = nodes[i].edges[rune_]
-					if !ok {
-						node = newTrieNode()
-						nodes[i].edges[rune_] = node
-					}
-					currPosition = j
-					nodes[j] = node
-				}
-			}
-			node.postings = append(node.postings, postings...)
-			node.appendedPostings += len(postings)
-		}
-		b.terms = make(map[string][]int)
-	}
-
-	return b.root.Dump(dst)
-}
-
 // Creates a new TrieBuilder.
 func NewTrieBuilder() TrieBuilder {
-	builder := new(trieBuilder)
-	builder.terms = make(map[string][]int)
-	return builder
+	return newTrieNode()
 }
