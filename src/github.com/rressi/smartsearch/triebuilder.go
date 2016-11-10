@@ -218,8 +218,70 @@ func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 	return
 }
 
+// -----------------------------------------------------------------------------
+
+// Implementation of a trie builder.
+type trieBuilder struct {
+	root          *trieNode
+	requiredRunes int
+	terms         map[string][]int
+}
+
+// Implementation of TrieBuilder.Add
+func (b *trieBuilder) Add(posting int, term string) {
+	b.terms[term] = append(b.terms[term], posting)
+
+	requiredRunes := len(term)
+	if requiredRunes > b.requiredRunes {
+		b.requiredRunes = requiredRunes
+	}
+}
+
+// Implementation of TrieBuilder.Dump
+func (b *trieBuilder) Dump(dst io.Writer) error {
+
+	// Creates root node if needed:
+	if b.root == nil {
+		b.root = newTrieNode()
+	}
+
+	// Processes all pending terms:
+	if len(b.terms) > 0 {
+		nodes := make([]*trieNode, b.requiredRunes+1)
+		nodes[0] = b.root
+		runes := make([]rune, b.requiredRunes+1)
+		runes[0] = 0
+		currPosition := 0
+		for term, postings := range b.terms {
+			node := b.root
+			for i, rune_ := range term {
+				j := i + 1
+				if j <= currPosition && runes[j] == rune_ {
+					node = nodes[j]
+				} else {
+					runes[j] = rune_
+					var ok bool
+					node, ok = nodes[i].edges[rune_]
+					if !ok {
+						node = newTrieNode()
+						nodes[i].edges[rune_] = node
+					}
+					currPosition = j
+					nodes[j] = node
+				}
+			}
+			node.postings = append(node.postings, postings...)
+			node.appendedPostings += len(postings)
+		}
+		b.terms = make(map[string][]int)
+	}
+
+	return b.root.Dump(dst)
+}
+
 // Creates a new TrieBuilder.
 func NewTrieBuilder() TrieBuilder {
-	root := newTrieNode()
-	return root
+	builder := new(trieBuilder)
+	builder.terms = make(map[string][]int)
+	return builder
 }
