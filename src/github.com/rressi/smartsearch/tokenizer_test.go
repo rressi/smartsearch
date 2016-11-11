@@ -8,6 +8,29 @@ import (
 func TestTokenizer_Base(t *testing.T) {
 
 	var tokens, expected_tokens []string
+	var query string
+
+	query = "YES!-This ìs ä fÄncy, is a string"
+	expected_tokens = []string{
+		"yes", "this", "is", "a", "fancy", "is", "a", "string"}
+
+	tokens = Tokenize(query)
+	if !reflect.DeepEqual(tokens, expected_tokens) {
+		t.Errorf("Unexpected result: tockens=%v", tokens)
+	}
+
+	query = ""
+	expected_tokens = nil
+
+	tokens = Tokenize(query)
+	if !reflect.DeepEqual(tokens, expected_tokens) {
+		t.Errorf("Unexpected result: tockens=%v", tokens)
+	}
+}
+
+func TestTokenizer_Search(t *testing.T) {
+
+	var tokens, expected_tokens []string
 	var incomplete_token, expected_incomplete_token string
 	var query string
 
