@@ -92,6 +92,7 @@ func benchmarkIndexBuilder(docs [][]byte) {
 
 	// Creates an IndexBuilder
 	builder := NewIndexBuilder()
+	defer builder.Abort() // This protects us from leaking some go-routine
 
 	// Reads it line by line:
 	numInputBytes := 0

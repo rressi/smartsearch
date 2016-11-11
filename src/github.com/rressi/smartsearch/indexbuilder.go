@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -72,40 +73,44 @@ type IndexBuilder interface {
 	// Generates a blob from all indexed documents and writes it to the passed
 	// io.Writer.
 	Dump(writer io.Writer) error
+
+	// Aborts all pending co-routines, their job will be lost.
+	Abort()
 }
 
 // Creates a new IndexBuilder.
+//
+// Warning: at first added content some go-routines are created to process the
+// data concurrently. This go-routines are joined when methods
+// IndexBuilder.Abort or IndexBuilder.Dump are called. To avoid leakages please
+// use a deferred call to one of the 2 just after creating the builder.
 func NewIndexBuilder() IndexBuilder {
 	b := new(indexBuilderImpl)
-	b.bulkData = make(map[string][]int)
 	return b
 }
 
 // Used to implement an IndexBuilder.
 type indexBuilderImpl struct {
-	bulkData    map[string][]int
-	longestTerm int
-	trieBuilder TrieBuilder
+	indexers      []Indexer
+	documentCount int
+	trieBuilder   TrieBuilder
 }
 
 // Implementation of IndexBuilder.AddDocument
 func (b *indexBuilderImpl) AddDocument(id int, content string) (_ error) {
 
-	terms, incompleteTerm := TokenizeForSearch(content)
-
-	for _, term := range terms {
-		if len(term) > b.longestTerm {
-			b.longestTerm = len(term)
+	// I needed it starts all the indexers:
+	if len(b.indexers) == 0 {
+		n := runtime.NumCPU()
+		for i := 0; i < n; i++ {
+			b.indexers = append(b.indexers, NewIndexer())
 		}
-		b.bulkData[term] = append(b.bulkData[term], id)
 	}
 
-	if len(incompleteTerm) > 0 {
-		if len(incompleteTerm) > b.longestTerm {
-			b.longestTerm = len(incompleteTerm)
-		}
-		b.bulkData[incompleteTerm] = append(b.bulkData[incompleteTerm], id)
-	}
+	// It dispatches one document:
+	k := b.documentCount % len(b.indexers)
+	b.indexers[k].AddDocument(id, content)
+	b.documentCount++
 
 	return
 }
@@ -257,15 +262,43 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 // Implementation of IndexBuilder.Dump
 func (b *indexBuilderImpl) Dump(writer io.Writer) error {
 
+	// We need a trie builder if not already built:
 	if b.trieBuilder == nil {
 		b.trieBuilder = NewTrieBuilder()
 	}
 
-	if len(b.bulkData) > 0 {
-		b.trieBuilder.AddBulk(b.bulkData, b.longestTerm)
-		b.bulkData = make(map[string][]int)
-		b.longestTerm = 0
+	// If there is pending content takes it from the indexers:
+	if len(b.indexers) > 0 {
+
+		// Tells all the indexers to finish their job:
+		for i := range b.indexers {
+			b.indexers[i].Finish()
+		}
+
+		// Collects terms from the indexers:
+		for i := range b.indexers {
+			indexedTerm := b.indexers[i].Result()
+			b.trieBuilder.AddBulk(indexedTerm)
+		}
+
+		b.indexers = nil // They are useless now.
 	}
 
+	// Generates our blob:
 	return b.trieBuilder.Dump(writer)
+}
+
+// Implementation of IndexBuilder.Abort
+func (b *indexBuilderImpl) Abort() {
+
+	// Stops all indexers:
+	if len(b.indexers) > 0 {
+
+		// Tells all the indexers to finish their job:
+		for i := range b.indexers {
+			b.indexers[i].Finish()
+		}
+
+		b.indexers = nil // They are useless now.
+	}
 }

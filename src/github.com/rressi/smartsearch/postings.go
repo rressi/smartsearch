@@ -38,8 +38,8 @@ func SortDedupPostings(src []int) (postings []int) {
 }
 
 // It takes 2 sorted and deduplicated sequences of postings and generates a new
-// sorted and deduplicated sequence that contains postings found in both
-// original sequences.
+// sorted and deduplicated sequence that contains the intersection of
+// the postings.
 func IntersectPostings(srcA []int, srcB []int) (postings []int) {
 
 	nA := len(srcA)
@@ -61,6 +61,51 @@ func IntersectPostings(srcA []int, srcB []int) (postings []int) {
 			iA++
 			iB++
 		}
+	}
+
+	return
+}
+
+// It takes 2 sorted and deduplicated sequences of postings and generates a new
+// sorted and deduplicated sequence that contains the union of
+// the postings.
+func UnitePostings(srcA []int, srcB []int) (postings []int) {
+
+	nA := len(srcA)
+	nB := len(srcB)
+
+	// Handles corner cases:
+	if nA == 0 {
+		postings = srcB
+		return
+	} else if nA == 0 {
+		postings = srcA
+		return
+	}
+
+	// Fuses the 2 sequences:
+	var iA, iB int
+	for iA < nA && iB < nB {
+		a := srcA[iA]
+		b := srcB[iB]
+		if a < b {
+			postings = append(postings, a)
+			iA++
+		} else if a > b {
+			postings = append(postings, b)
+			iB++
+		} else {
+			postings = append(postings, a)
+			iA++
+			iB++
+		}
+	}
+
+	// Attaches the eventual tail:
+	if iA < nA {
+		postings = append(postings, srcA[iA:]...)
+	} else if iB < nB {
+		postings = append(postings, srcB[iB:]...)
 	}
 
 	return

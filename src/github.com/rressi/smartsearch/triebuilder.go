@@ -19,17 +19,15 @@ type TrieBuilder interface {
 	// If term is an empty string then the posting is added to the root node.
 	Add(posting int, term string)
 
-	// It adds many terms at once together with their postings.
+	// It adds many terms that have been already nicely indexed.
 	//
-	// Data is passed as a map of terms -> list of postings.
-	//
-	// A value that is greater or equal to the maximum number of runes contained
-	// inside the bulk data. For simplicity the maximum len of all the terms can
-	// be used being it greater or equal than the number of runes.
+	// Data is passed as a sorted list of terms, each term is packed together
+	// with its postings (sorted and deduplicated) and the number of
+	// times this term have been found.
 	//
 	// If a term contains an empty string then the posting is added to the root
 	// node.
-	AddBulk(bulkData map[string][]int, requiredRunes int)
+	AddBulk(data IndexedTerms)
 
 	// Generates a trie and serializes to the passed io.Writer.
 	//
@@ -69,30 +67,33 @@ func (t *trieNode) Add(posting int, term string) {
 }
 
 // Implementation of TrieBuilder.AddBulk
-func (t *trieNode) AddBulk(bulkData map[string][]int, requiredRunes int) {
+func (t *trieNode) AddBulk(data IndexedTerms) {
 
-	// We can get some performance by iterating the terms in alphabetical order:
-	var sortedTerms []string
-	for term := range bulkData {
-		sortedTerms = append(sortedTerms, term)
+	// We need to know how many runes we need to memoize while importing the
+	// data:
+	requiredRunes := 0
+	for _, indexedTerm := range data {
+		if len(indexedTerm.term) > requiredRunes {
+			requiredRunes = len(indexedTerm.term)
+		}
 	}
-	sort.Strings(sortedTerms)
+	requiredRunes++
 
 	// We need a stack of nodes and a stack of runes in order to be able to
 	// take advantage of the common prefixes that sorted terms have naturally:
-	nodes := make([]*trieNode, requiredRunes+1)
+	nodes := make([]*trieNode, requiredRunes)
 	nodes[0] = t
-	runes := make([]rune, requiredRunes+1)
+	runes := make([]rune, requiredRunes)
 	runes[0] = 0
 	currPosition := 0
 
 	// For each term in a sorted order:
-	for _, term := range sortedTerms {
+	for _, indexedTerm := range data {
 
 		// Walks to the target node starting from the last node sharing the
 		// same prefix with last one previous:
 		node := t
-		for i, rune_ := range term {
+		for i, rune_ := range indexedTerm.term {
 			j := i + 1
 			if j <= currPosition && runes[j] == rune_ {
 				node = nodes[j] // Prefix match
@@ -109,9 +110,11 @@ func (t *trieNode) AddBulk(bulkData map[string][]int, requiredRunes int) {
 			}
 		}
 
-		postings := bulkData[term]
-		node.postings = append(node.postings, postings...)
-		node.appendedPostings += len(postings)
+		if len(t.postings) > 0 && node.appendedPostings > 0 {
+			node.postings = SortDedupPostings(node.postings)
+			node.appendedPostings = 0
+		}
+		node.postings = UnitePostings(node.postings, indexedTerm.postings)
 	}
 }
 

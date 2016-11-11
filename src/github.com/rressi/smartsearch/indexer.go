@@ -2,7 +2,6 @@ package smartsearch
 
 import (
 	"sort"
-	"strings"
 )
 
 // A component to tokenize documents with a slave co-routine
@@ -16,29 +15,6 @@ type Indexer interface {
 
 	// Wait for termination and fetches the final result.
 	Result() IndexedTerms
-}
-
-type IndexedTerm struct {
-	term        string
-	postings    []int
-	occurrences int
-}
-
-type IndexedTerms []IndexedTerm
-
-// Implementation of sort.Interface
-func (s IndexedTerms) Len() int {
-	return len(s)
-}
-
-// Implementation of sort.Interface
-func (s IndexedTerms) Less(i, j int) bool {
-	return strings.Compare(s[i].term, s[j].term) < 0
-}
-
-// Implementation of sort.Interface
-func (s IndexedTerms) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
 }
 
 // Used by implementation of Indexer to receive new input.
