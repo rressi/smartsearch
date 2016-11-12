@@ -84,6 +84,7 @@ func runMakeIndex(
 	// Indexes all the documents:
 	var numLines int
 	builder := smartsearch.NewIndexBuilder()
+	defer builder.Abort() // This protects us from leaking some go-routine
 	jsonContentsSplit := strings.Split(jsonContents, ",")
 	numLines, err = builder.IndexJsonStream(bufInput, jsonId, jsonContentsSplit)
 	if err != nil {

@@ -12,12 +12,22 @@ import (
 // for TrieReader.
 type TrieBuilder interface {
 
-	// Add one term to the trie to build, and associates it to one posting.
+	// It adds one term to the trie to build, and associates it to one posting.
 	//
 	// The passed posting should be strictly positive.
 	//
 	// If term is an empty string then the posting is added to the root node.
 	Add(posting int, term string)
+
+	// It adds many terms that have been already nicely indexed.
+	//
+	// Data is passed as a sorted list of terms, each term is packed together
+	// with its postings (sorted and deduplicated) and the number of
+	// times this term have been found.
+	//
+	// If a term contains an empty string then the posting is added to the root
+	// node.
+	AddBulk(data IndexedTerms)
 
 	// Generates a trie and serializes to the passed io.Writer.
 	//
@@ -27,15 +37,15 @@ type TrieBuilder interface {
 
 // A TrieBuilder's node used internally by its implementation.
 type trieNode struct {
-	edges    map[rune]*trieNode
-	postings map[int]int
+	edges            map[rune]*trieNode
+	postings         []int
+	appendedPostings int
 }
 
 // It creates a TrieBuilder's node.
 func newTrieNode() *trieNode {
 	node := new(trieNode)
 	node.edges = make(map[rune]*trieNode, 0)
-	node.postings = make(map[int]int, 0)
 	return node
 }
 
@@ -52,7 +62,60 @@ func (t *trieNode) Add(posting int, term string) {
 			node = childNode
 		}
 	}
-	node.postings[posting] += 1
+	node.postings = append(node.postings, posting)
+	node.appendedPostings += 1
+}
+
+// Implementation of TrieBuilder.AddBulk
+func (t *trieNode) AddBulk(data IndexedTerms) {
+
+	// We need to know how many runes we need to memoize while importing the
+	// data:
+	requiredRunes := 0
+	for _, indexedTerm := range data {
+		if len(indexedTerm.term) > requiredRunes {
+			requiredRunes = len(indexedTerm.term)
+		}
+	}
+	requiredRunes++
+
+	// We need a stack of nodes and a stack of runes in order to be able to
+	// take advantage of the common prefixes that sorted terms have naturally:
+	nodes := make([]*trieNode, requiredRunes)
+	nodes[0] = t
+	runes := make([]rune, requiredRunes)
+	runes[0] = 0
+	currPosition := 0
+
+	// For each term in a sorted order:
+	for _, indexedTerm := range data {
+
+		// Walks to the target node starting from the last node sharing the
+		// same prefix with last one previous:
+		node := t
+		for i, rune_ := range indexedTerm.term {
+			j := i + 1
+			if j <= currPosition && runes[j] == rune_ {
+				node = nodes[j] // Prefix match
+			} else {
+				currPosition = j // Prefix match stops here
+				runes[j] = rune_
+				var ok bool
+				node, ok = nodes[i].edges[rune_]
+				if !ok {
+					node = newTrieNode()
+					nodes[i].edges[rune_] = node
+				}
+				nodes[j] = node
+			}
+		}
+
+		if len(t.postings) > 0 && node.appendedPostings > 0 {
+			node.postings = SortDedupPostings(node.postings)
+			node.appendedPostings = 0
+		}
+		node.postings = UnitePostings(node.postings, indexedTerm.postings)
+	}
 }
 
 // It implements TrieBuilder.Dump
@@ -72,6 +135,12 @@ func (t *trieNode) dumpRec(dst io.Writer) (sz int, err error) {
 	writeInt := func(dst io.Writer, value int) (sz int, err error) {
 		numBytes := binary.PutUvarint(tmp, uint64(value))
 		return dst.Write(tmp[:numBytes])
+	}
+
+	// Consolidates collected postings:
+	if len(t.postings) > 0 && t.appendedPostings > 0 {
+		t.postings = SortDedupPostings(t.postings)
+		t.appendedPostings = 0
 	}
 
 	var sz_ int
@@ -179,20 +248,21 @@ func (t *trieNode) dumpRec(dst io.Writer) (sz int, err error) {
 // It encodes all the postings associated to one TrieBuilder's node.
 func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 
-	// It fetches all the postings and sorts them:
-	postings := make([]int, len(t.postings))
-	i := 0
-	for posting := range t.postings {
-		postings[i] = posting
-		i++
+	if len(t.postings) == 0 {
+		return
 	}
-	sort.Ints(postings) // NOTE: they are already deduplicated.
+
+	// Consolidates collected postings:
+	if t.appendedPostings > 0 {
+		t.postings = SortDedupPostings(t.postings)
+		t.appendedPostings = 0
+	}
 
 	// Dumps all the postings:
 	var sz_ int
 	previousPosting := 0
 	tmp := make([]byte, 16)
-	for _, posting := range postings {
+	for _, posting := range t.postings {
 
 		// Serializes the increment of current posting:
 		numBytes := binary.PutUvarint(tmp, uint64(posting-previousPosting))
@@ -210,8 +280,9 @@ func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 	return
 }
 
+// -----------------------------------------------------------------------------
+
 // Creates a new TrieBuilder.
 func NewTrieBuilder() TrieBuilder {
-	root := newTrieNode()
-	return root
+	return newTrieNode()
 }

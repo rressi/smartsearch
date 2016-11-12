@@ -133,6 +133,7 @@ func LoadDocuments(documentFile string, jsonId string, jsonContents string) (
 
 	// Loads and indexes all the documents:
 	builder := smartsearch.NewIndexBuilder()
+	defer builder.Abort() // This protects us from leaking some go-routine
 	jsonContentsSplit := strings.Split(jsonContents, ",")
 	ctx.docs, err = builder.LoadAndIndexJsonStream(bufInput, jsonId,
 		jsonContentsSplit)

@@ -8,6 +8,34 @@ import (
 
 // Given a free text, produces normalized tokens.
 //
+// It returns:
+// - extracted tokens in the same original order.
+func Tokenize(query string) (tokens []string) {
+
+	if len(query) == 0 {
+		return // Sorry, no tokens found.
+	}
+
+	// Normalizes the query:
+	var buf bytes.Buffer
+	buf.ReadFrom(ReadNormalized(bytes.NewBufferString(query)))
+	normalized_query := buf.String()
+	if normalized_query == "" || normalized_query == " " {
+		return // Sorry, no tokens found.
+	}
+
+	// Extracts all non-empty tokens:
+	for _, token := range strings.Split(normalized_query, " ") {
+		if len(token) > 0 {
+			tokens = append(tokens, token)
+		}
+	}
+
+	return
+}
+
+// Given a free text, produces normalized tokens.
+//
 // If last character of the passed input was a valid one then considers as
 // potentially incomplete it and returns it apart.
 //
