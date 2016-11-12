@@ -1,26 +1,42 @@
 package smartsearch
 
 import (
-	"bytes"
+	"fmt"
 	"sort"
 	"strings"
 )
+
+type Tokenizer interface {
+	Apply(query string) (tokens []string, err error)
+	ForSearch(query string) (tokens []string, incompleteTerm string, err error)
+}
+
+type tokenizerImpl struct {
+	normalizer Normalizer
+}
+
+func NewTokenizer() Tokenizer {
+	tokenizer := new(tokenizerImpl)
+	tokenizer.normalizer = NewNormalizer()
+	return tokenizer
+}
 
 // Given a free text, produces normalized tokens.
 //
 // It returns:
 // - extracted tokens in the same original order.
-func Tokenize(query string) (tokens []string) {
+func (t *tokenizerImpl) Apply(query string) (tokens []string, err error) {
 
 	if len(query) == 0 {
 		return // Sorry, no tokens found.
 	}
 
 	// Normalizes the query:
-	var buf bytes.Buffer
-	buf.ReadFrom(ReadNormalized(bytes.NewBufferString(query)))
-	normalized_query := buf.String()
-	if normalized_query == "" || normalized_query == " " {
+	normalized_query, err := t.normalizer.Apply(query)
+	if err != nil {
+		err = fmt.Errorf("Tokenizer.Apply: %v", err)
+		return
+	} else if normalized_query == "" || normalized_query == " " {
 		return // Sorry, no tokens found.
 	}
 
@@ -43,60 +59,56 @@ func Tokenize(query string) (tokens []string) {
 // - all complete tokens, sorted and deduplicated.
 // - optionally the las token a part if it was considered to be potentially
 //   incomplete.
-func TokenizeForSearch(query string) (tokens []string,
-	incomplete_token string) {
+func (t *tokenizerImpl) ForSearch(query string) (tokens []string,
+	incompleteToken string, err error) {
 
 	if len(query) == 0 {
 		return // Sorry, no tokens found.
 	}
 
-	var _tokens []string
-	var _incomplete_token string
-
 	// Normalizes the query:
-	var buf bytes.Buffer
-	buf.ReadFrom(ReadNormalized(bytes.NewBufferString(query)))
-	normalized_query := buf.String()
-	if normalized_query == "" || normalized_query == " " {
+	normalized_query, err := t.normalizer.Apply(query)
+	if err != nil {
+		err = fmt.Errorf("Tokenizer.ForSearch: %v", err)
+		return
+	} else if normalized_query == "" || normalized_query == " " {
 		return // Sorry, no tokens found.
 	}
 
 	// Extracts all non-empty tokens:
+	var tokens_ []string
 	for _, token := range strings.Split(normalized_query, " ") {
 		if len(token) > 0 {
-			_tokens = append(_tokens, token)
+			tokens_ = append(tokens_, token)
 		}
 	}
-	if len(_tokens) == 0 {
+	if len(tokens_) == 0 {
 		return // Sorry, no tokens found.
 	}
 
 	// If we don't have a separator at the end of the query means that the last
 	// typed character may be part of a term the user is still writing:
+	var incompleteToken_ string
 	if normalized_query[len(normalized_query)-1] != ' ' {
-		_incomplete_token = _tokens[len(_tokens)-1]
-		_tokens = _tokens[:len(_tokens)-1]
+		incompleteToken_ = tokens_[len(tokens_)-1]
+		tokens_ = tokens_[:len(tokens_)-1]
 	}
 
 	// Sorts and deduplicates extracted tokens:
-	if len(_tokens) > 1 {
-		sort.Strings(_tokens)
+	if len(tokens_) > 1 {
+		sort.Strings(tokens_)
 		i := 0
-		for j := 1; j < len(_tokens); j++ {
-			if _tokens[i] != _tokens[j] {
+		for j := 1; j < len(tokens_); j++ {
+			if tokens_[i] != tokens_[j] {
 				i++
-				_tokens[i] = _tokens[j]
+				tokens_[i] = tokens_[j]
 			}
 		}
-		_tokens = _tokens[:i+1]
+		tokens_ = tokens_[:i+1]
 	}
 
 	// Generates the final result:
-	if len(_tokens) > 0 {
-		tokens = make([]string, len(_tokens))
-		copy(tokens, _tokens)
-	}
-	incomplete_token = _incomplete_token
-
+	tokens = append(tokens, tokens_...)
+	incompleteToken = incompleteToken_
 	return
 }

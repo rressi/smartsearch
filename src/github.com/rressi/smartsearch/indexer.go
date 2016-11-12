@@ -25,9 +25,10 @@ type indexerInput struct {
 
 // Main struct used by implementation of Indexer.
 type indexerImpl struct {
-	terms   map[string][]int
-	inChan  chan<- indexerInput
-	outChan <-chan IndexedTerms
+	terms     map[string][]int
+	tokenizer Tokenizer
+	inChan    chan<- indexerInput
+	outChan   <-chan IndexedTerms
 }
 
 // Implementation of IndexTokenizer.AddDocument
@@ -49,13 +50,14 @@ func (i *indexerImpl) Result() IndexedTerms {
 // Creates an IndexTokenizer
 func NewIndexer() Indexer {
 	i := new(indexerImpl)
+	i.tokenizer = NewTokenizer()
 	inChan := make(chan indexerInput, 1000)
 	outChan := make(chan IndexedTerms, 1)
 	go func() {
 		i.terms = make(map[string][]int)
 		for command := range inChan {
 			if command.id >= 0 {
-				terms := Tokenize(command.content)
+				terms, _ := i.tokenizer.Apply(command.content)
 				for _, term := range terms {
 					i.terms[term] = append(i.terms[term], command.id)
 				}

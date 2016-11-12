@@ -1,47 +1,76 @@
 package smartsearch
 
 import (
+	"fmt"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
-	"io"
 	"unicode"
 )
 
-func ReadNormalized(r io.Reader) io.Reader {
+type Normalizer interface {
+	Apply(src string) (result string, err error)
+}
 
-	removeMn := func(r rune) bool {
-		return unicode.Is(unicode.Mn, r)
-	}
+type normalizerImpl struct {
+	transformer transform.Transformer
+	spaceCount  int
+}
 
-	replaceInvalidChars := runes.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			return r
-		} else {
-			return rune(' ')
-		}
-	})
+func NewNormalizer() Normalizer {
 
-	spaceCount := 1
+	normalizer := new(normalizerImpl)
+	normalizer.spaceCount = 1
+
 	removeRepeatedSpaces := func(r rune) bool {
 		if r == rune(' ') {
-			spaceCount += 1
-			return spaceCount > 1
+			normalizer.spaceCount += 1
+			return normalizer.spaceCount > 1
 		} else {
-			spaceCount = 0
+			normalizer.spaceCount = 0
 			return false
 		}
 	}
 
-	t := transform.Chain(
+	normalizer.transformer = transform.Chain(
 		norm.NFD,
 		transform.RemoveFunc(removeMn),
 		norm.NFC,
 		cases.Lower(language.English),
-		replaceInvalidChars,
+		runes.Map(replaceInvalidChars),
 		transform.RemoveFunc(removeRepeatedSpaces))
 
-	return transform.NewReader(r, t)
+	return normalizer
+}
+
+func (n *normalizerImpl) Apply(src string) (result string, err error) {
+
+	dst := make([]byte, len(src))
+	nDst, nSrc, err := n.transformer.Transform(dst, []byte(src), true)
+	if err != nil {
+		err = fmt.Errorf("Normalizer.Apply: %v", err)
+		return
+	} else if nSrc != len(src) {
+		err = fmt.Errorf(
+			"Normalizer.Apply: %v charcters processed instead of %v", nSrc,
+			len(src))
+		return
+	}
+
+	result = string(dst[:nDst])
+	return
+}
+
+func removeMn(r rune) bool {
+	return unicode.Is(unicode.Mn, r)
+}
+
+func replaceInvalidChars(r rune) rune {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return r
+	} else {
+		return rune(' ')
+	}
 }
