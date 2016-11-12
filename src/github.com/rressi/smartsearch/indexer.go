@@ -57,7 +57,7 @@ func NewIndexer() Indexer {
 		i.terms = make(map[string][]int)
 		for command := range inChan {
 			if command.id >= 0 {
-				terms, _ := i.tokenizer.Apply(command.content)
+				terms := i.tokenizer.Apply(command.content)
 				for _, term := range terms {
 					i.terms[term] = append(i.terms[term], command.id)
 				}

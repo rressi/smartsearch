@@ -79,7 +79,7 @@ func (idx *indexImpl) Search(query string, limit int) (
 	}
 
 	// Extracts all the terms:
-	terms, incomplete_term, err := idx.tokenizer.ForSearch(query)
+	terms, incomplete_term := idx.tokenizer.ForSearch(query)
 	if err != nil {
 		return
 	}

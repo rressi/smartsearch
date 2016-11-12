@@ -1,14 +1,13 @@
 package smartsearch
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 )
 
 type Tokenizer interface {
-	Apply(query string) (tokens []string, err error)
-	ForSearch(query string) (tokens []string, incompleteTerm string, err error)
+	Apply(query string) (tokens []string)
+	ForSearch(query string) (tokens []string, incompleteTerm string)
 }
 
 type tokenizerImpl struct {
@@ -25,18 +24,15 @@ func NewTokenizer() Tokenizer {
 //
 // It returns:
 // - extracted tokens in the same original order.
-func (t *tokenizerImpl) Apply(query string) (tokens []string, err error) {
+func (t *tokenizerImpl) Apply(query string) (tokens []string) {
 
 	if len(query) == 0 {
 		return // Sorry, no tokens found.
 	}
 
 	// Normalizes the query:
-	normalized_query, err := t.normalizer.Apply(query)
-	if err != nil {
-		err = fmt.Errorf("Tokenizer.Apply: %v", err)
-		return
-	} else if normalized_query == "" || normalized_query == " " {
+	normalized_query := t.normalizer.Apply(query)
+	if normalized_query == "" || normalized_query == " " {
 		return // Sorry, no tokens found.
 	}
 
@@ -60,18 +56,15 @@ func (t *tokenizerImpl) Apply(query string) (tokens []string, err error) {
 // - optionally the las token a part if it was considered to be potentially
 //   incomplete.
 func (t *tokenizerImpl) ForSearch(query string) (tokens []string,
-	incompleteToken string, err error) {
+	incompleteToken string) {
 
 	if len(query) == 0 {
 		return // Sorry, no tokens found.
 	}
 
 	// Normalizes the query:
-	normalized_query, err := t.normalizer.Apply(query)
-	if err != nil {
-		err = fmt.Errorf("Tokenizer.ForSearch: %v", err)
-		return
-	} else if normalized_query == "" || normalized_query == " " {
+	normalized_query := t.normalizer.Apply(query)
+	if normalized_query == "" || normalized_query == " " {
 		return // Sorry, no tokens found.
 	}
 
