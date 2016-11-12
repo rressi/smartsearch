@@ -52,7 +52,8 @@ func NewIndex(reader io.Reader) (index Index, rawIdex []byte, err error) {
 
 // Local storage for the private implementation of an Index.
 type indexImpl struct {
-	trie *TrieReader
+	trie      *TrieReader
+	tokenizer Tokenizer
 }
 
 // Private implementation of Index.Search.
@@ -73,8 +74,15 @@ func (idx *indexImpl) Search(query string, limit int) (
 		return // Nothing to do.
 	}
 
+	if idx.tokenizer == nil {
+		idx.tokenizer = NewTokenizer()
+	}
+
 	// Extracts all the terms:
-	terms, incomplete_term := TokenizeForSearch(query)
+	terms, incomplete_term := idx.tokenizer.ForSearch(query)
+	if err != nil {
+		return
+	}
 
 	// Special case: we need to extract all the postings:
 	if len(terms) == 0 && len(incomplete_term) == 0 {

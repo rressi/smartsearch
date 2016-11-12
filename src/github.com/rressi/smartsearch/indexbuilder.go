@@ -2,12 +2,9 @@ package smartsearch
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"runtime"
-	"strconv"
-	"strings"
 )
 
 // IndexBuilder is a component that collects documents to generate one index
@@ -19,7 +16,7 @@ type IndexBuilder interface {
 	//
 	// If the same id is used many times it consider the passed content as part
 	// of the same document.
-	AddDocument(id int, content string) error
+	AddDocument(id int, content string)
 
 	// It indexes a JSON document.
 	//
@@ -40,7 +37,7 @@ type IndexBuilder interface {
 	// - if the same id is used many times it consider the passed content as
 	//   part of the same document.
 	AddJsonDocument(jsonDocument []byte, idField string,
-		contentFields []string) (id int, err error)
+		contentFields []string)
 
 	// Applies method AddJsonDocument on all lines read from the passed
 	// io.Reader.
@@ -85,7 +82,15 @@ type IndexBuilder interface {
 // IndexBuilder.Abort or IndexBuilder.Dump are called. To avoid leakages please
 // use a deferred call to one of the 2 just after creating the builder.
 func NewIndexBuilder() IndexBuilder {
+
 	b := new(indexBuilderImpl)
+
+	// Starts all the indexers:
+	n := runtime.NumCPU()
+	for i := 0; i < n; i++ {
+		b.indexers = append(b.indexers, NewIndexer())
+	}
+
 	return b
 }
 
@@ -97,85 +102,19 @@ type indexBuilderImpl struct {
 }
 
 // Implementation of IndexBuilder.AddDocument
-func (b *indexBuilderImpl) AddDocument(id int, content string) (_ error) {
-
-	// I needed it starts all the indexers:
-	if len(b.indexers) == 0 {
-		n := runtime.NumCPU()
-		for i := 0; i < n; i++ {
-			b.indexers = append(b.indexers, NewIndexer())
-		}
-	}
-
-	// It dispatches one document:
+func (b *indexBuilderImpl) AddDocument(id int, content string) {
 	k := b.documentCount % len(b.indexers)
-	b.indexers[k].AddDocument(id, content)
+	b.indexers[k].AddContent(id, []byte(content))
 	b.documentCount++
-
-	return
 }
 
 // Implementation of IndexBuilder.AddJsonDocument
 func (b *indexBuilderImpl) AddJsonDocument(jsonDocument []byte, idField string,
-	contentFields []string) (id int, err error) {
-
-	// Any further failure will reset our state machine:
-	defer func() {
-		if err == io.EOF {
-			err = nil
-		} else if err != nil {
-			err = fmt.Errorf("IndexBuilder.AddJsonDocument: %v", err)
-		}
-	}()
-
-	var datum map[string]interface{}
-	err = json.Unmarshal(jsonDocument, &datum)
-	if err != nil {
-		return
-	}
-
-	var value interface{}
-	value, ok := datum[idField]
-	if !ok {
-		err = fmt.Errorf("document does not have ID field '%v' defined",
-			idField)
-		return
-	}
-
-	var docId int
-	switch docId_ := value.(type) {
-	case int:
-		docId = docId_
-	case float64:
-		docId = int(docId_)
-	case string:
-		docId, err = strconv.Atoi(docId_)
-	}
-	if err != nil {
-		return
-	}
-
-	var content []string
-	for _, field := range contentFields {
-		value_, ok := datum[field]
-		if ok {
-			switch value := value_.(type) {
-			case string:
-				content = append(content, value)
-			case int:
-				content = append(content, fmt.Sprint(value))
-			}
-		}
-	}
-
-	if len(content) > 0 {
-		err = b.AddDocument(docId, strings.Join(content, " "))
-		if err != nil {
-			return
-		}
-	}
-
-	id = docId
+	contentFields []string) {
+	k := b.documentCount % len(b.indexers)
+	b.indexers[k].AddRawContent(jsonDocument,
+		MakeJsonExtractor(idField, contentFields))
+	b.documentCount++
 	return
 }
 
@@ -200,11 +139,9 @@ func (b *indexBuilderImpl) IndexJsonStream(reader io.Reader, idField string,
 		}
 
 		numLines += 1
-		_, err = b.AddJsonDocument(scanner.Bytes(), idField, contentFields)
-		if err != nil {
-			return
-		}
+		b.AddJsonDocument(scanner.Bytes(), idField, contentFields)
 	}
+	err = scanner.Err()
 
 	return
 }
@@ -229,19 +166,19 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 		}
 	}()
 
+	extractor := MakeJsonExtractor(idField, contentFields)
 	documents_ := make(map[int][]byte, 0)
 	scanner := bufio.NewScanner(reader)
+
 	for scanner.Scan() {
 		if len(scanner.Bytes()) == 0 {
 			continue // Ignores empty lines.
 		}
 		numLines += 1
 
-		blob := make([]byte, len(scanner.Bytes()))
-		copy(blob, scanner.Bytes())
-
 		var id int
-		id, err = b.AddJsonDocument(blob, idField, contentFields)
+		var content string
+		id, content, err = extractor(scanner.Bytes())
 		if err != nil {
 			return
 		}
@@ -251,8 +188,12 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 			return
 		}
 
-		// Indexes current document:
+		var blob []byte
+		blob = make([]byte, len(scanner.Bytes()))
+		copy(blob, scanner.Bytes())
 		documents_[id] = blob
+
+		b.AddDocument(id, content)
 	}
 
 	documents = documents_
@@ -260,7 +201,13 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 }
 
 // Implementation of IndexBuilder.Dump
-func (b *indexBuilderImpl) Dump(writer io.Writer) error {
+func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
+
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("IndexBuilder.Dump: %v", err)
+		}
+	}()
 
 	// We need a trie builder if not already built:
 	if b.trieBuilder == nil {
@@ -277,15 +224,20 @@ func (b *indexBuilderImpl) Dump(writer io.Writer) error {
 
 		// Collects terms from the indexers:
 		for i := range b.indexers {
-			indexedTerm := b.indexers[i].Result()
-			b.trieBuilder.AddBulk(indexedTerm)
+			var indexedTerms IndexedTerms
+			indexedTerms, err = b.indexers[i].Result()
+			if err != nil {
+				return
+			}
+			b.trieBuilder.AddBulk(indexedTerms)
 		}
 
 		b.indexers = nil // They are useless now.
 	}
 
 	// Generates our blob:
-	return b.trieBuilder.Dump(writer)
+	err = b.trieBuilder.Dump(writer)
+	return
 }
 
 // Implementation of IndexBuilder.Abort
