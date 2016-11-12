@@ -2,12 +2,9 @@ package smartsearch
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"runtime"
-	"strconv"
-	"strings"
 )
 
 // IndexBuilder is a component that collects documents to generate one index
@@ -206,6 +203,12 @@ func (b *indexBuilderImpl) LoadAndIndexJsonStream(
 // Implementation of IndexBuilder.Dump
 func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
 
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("IndexBuilder.Dump: %v", err)
+		}
+	}()
+
 	// We need a trie builder if not already built:
 	if b.trieBuilder == nil {
 		b.trieBuilder = NewTrieBuilder()
@@ -223,6 +226,9 @@ func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
 		for i := range b.indexers {
 			var indexedTerms IndexedTerms
 			indexedTerms, err = b.indexers[i].Result()
+			if err != nil {
+				return
+			}
 			b.trieBuilder.AddBulk(indexedTerms)
 		}
 
@@ -230,7 +236,8 @@ func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
 	}
 
 	// Generates our blob:
-	return b.trieBuilder.Dump(writer)
+	err = b.trieBuilder.Dump(writer)
+	return
 }
 
 // Implementation of IndexBuilder.Abort
@@ -245,57 +252,5 @@ func (b *indexBuilderImpl) Abort() {
 		}
 
 		b.indexers = nil // They are useless now.
-	}
-}
-
-func MakeJsonExtractor(idField string,
-	contentFields []string) ContentExtractor {
-	return func(jsonDocument []byte) (id int, content string, err error) {
-
-		var datum map[string]interface{}
-		err = json.Unmarshal(jsonDocument, &datum)
-		if err != nil {
-			return
-		}
-
-		var value interface{}
-		value, ok := datum[idField]
-		if !ok {
-			err = fmt.Errorf("document does not have ID field '%v' defined",
-				idField)
-			return
-		}
-
-		// Parses the document id:
-		var parsedId int
-		switch docId_ := value.(type) {
-		case int:
-			parsedId = docId_
-		case float64:
-			parsedId = int(docId_)
-		case string:
-			parsedId, err = strconv.Atoi(docId_)
-		}
-		if err != nil {
-			return
-		}
-
-		// Takes all the fields to be indexed:
-		var parsedContent []string
-		for _, field := range contentFields {
-			value_, ok := datum[field]
-			if ok {
-				switch value := value_.(type) {
-				case string:
-					parsedContent = append(parsedContent, value)
-				case int:
-					parsedContent = append(parsedContent, fmt.Sprint(value))
-				}
-			}
-		}
-
-		id = parsedId
-		content = strings.Join(parsedContent, " ")
-		return
 	}
 }

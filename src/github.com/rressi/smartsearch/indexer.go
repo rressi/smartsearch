@@ -6,9 +6,6 @@ import (
 	"sort"
 )
 
-// A function to preprocess content in the slave threads
-type ContentExtractor func(raw []byte) (id int, content string, err error)
-
 // A component to tokenize documents with a slave co-routine
 type Indexer interface {
 
