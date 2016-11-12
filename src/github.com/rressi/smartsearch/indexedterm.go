@@ -1,9 +1,5 @@
 package smartsearch
 
-import (
-	"strings"
-)
-
 type IndexedTerm struct {
 	term        string
 	postings    []int
@@ -19,7 +15,7 @@ func (s IndexedTerms) Len() int {
 
 // Implementation of sort.Interface
 func (s IndexedTerms) Less(i, j int) bool {
-	return strings.Compare(s[i].term, s[j].term) < 0
+	return s[i].term < s[j].term
 }
 
 // Implementation of sort.Interface
