@@ -19,11 +19,13 @@ func TestIndexer_Base(t *testing.T) {
 		{"yes", []int{10}, 1}}
 
 	indexer := NewIndexer()
-	indexer.AddDocument(10, contentA)
-	indexer.AddDocument(12, contentB)
+	indexer.AddContent(10, []byte(contentA))
+	indexer.AddContent(12, []byte(contentB))
 	indexer.Finish()
-	terms := indexer.Result()
-	if !reflect.DeepEqual(terms, expected_terms) {
+	terms, err := indexer.Result()
+	if err != nil {
+		t.Errorf("Indexer failed: %v", err)
+	} else if !reflect.DeepEqual(terms, expected_terms) {
 		t.Errorf("Unexpected result: terms=%v", terms)
 	}
 }
