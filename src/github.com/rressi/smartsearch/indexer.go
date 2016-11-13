@@ -2,7 +2,6 @@ package smartsearch
 
 import (
 	"fmt"
-	"io"
 	"sort"
 )
 
@@ -19,40 +18,14 @@ type Indexer interface {
 	Finish()
 
 	// Wait for termination and fetches the final result.
-	Result() (result IndexedTerms, err error)
+	Result() (result IndexedTerms, errors []error)
 }
 
 // Used by implementation of Indexer to receive new input.
 type indexerInput struct {
-	id        int
+	id        int // negative values are used to control the flow
 	content   []byte
 	extractor ContentExtractor
-}
-
-func (i *indexerInput) extract() (id int, content string, err error) {
-
-	if i.extractor == nil {
-		if i.id < 0 {
-			err = io.EOF
-		} else {
-			id = i.id
-			content = string(i.content)
-		}
-		return
-	}
-
-	id_, content_, err_ := i.extractor(i.content)
-	if err_ != nil {
-		err = fmt.Errorf("indexerInput.Extract: %v", err_)
-		return
-	} else if id_ < 0 {
-		err = fmt.Errorf("indexerInput.Extract: invalid id %v extracted", id_)
-		return
-	}
-
-	id = id_
-	content = content_
-	return
 }
 
 // Main struct used by implementation of Indexer.
@@ -60,71 +33,138 @@ type indexerImpl struct {
 	terms     map[string][]int
 	tokenizer Tokenizer
 	inChan    chan<- indexerInput
-	outChan   <-chan IndexedTerms
-	err       error
+	outChan   <-chan bool
+	results   IndexedTerms
+	errors    []error
 }
 
 // Implementation of IndexTokenizer.AddDocument
 func (i *indexerImpl) AddContent(id int, content []byte) {
-	command := indexerInput{id: id, content: content}
-	i.inChan <- command
+	if len(content) == 0 {
+		// pass
+	} else if id < 0 {
+		err := fmt.Errorf("indexerImpl.AddContent: invalid id %v ", id)
+		i.errors = append(i.errors, err)
+	} else if i.inChan != nil {
+		command := indexerInput{id: id, content: content}
+		i.inChan <- command
+	} else {
+		i.onAddContent(id, string(content))
+	}
+}
+
+// Indexes the content
+func (i *indexerImpl) onAddContent(id int, content string) {
+	terms := i.tokenizer.Apply(content)
+	for _, term := range terms {
+		i.terms[term] = append(i.terms[term], id)
+	}
 }
 
 // Posts new content to be processed.
 func (i *indexerImpl) AddRawContent(raw []byte, extractor ContentExtractor) {
-	command := indexerInput{content: raw, extractor: extractor}
-	i.inChan <- command
-}
-
-// Implementation of IndexTokenizer.Done
-func (i *indexerImpl) Finish() {
-	i.inChan <- indexerInput{id: -1}
-}
-
-// Implementation of IndexTokenizer.Result
-func (i *indexerImpl) Result() (result IndexedTerms, err error) {
-	if i.err != io.EOF && i.err != nil {
-		err = i.err
+	if len(raw) == 0 {
+		// pass
+	} else if i.inChan != nil {
+		command := indexerInput{content: raw, extractor: extractor}
+		i.inChan <- command
+	} else {
+		id, content := i.onAddRawContent(raw, extractor)
+		if len(content) >= 0 {
+			i.onAddContent(id, content)
+		}
 	}
-	result = <-i.outChan
+}
+
+func (i *indexerImpl) onAddRawContent(raw []byte, extractor ContentExtractor) (
+	id int, content string) {
+
+	// Uses the extractor to get the pure content and the document id.
+	id, content, err := extractor(raw)
+	if err != nil {
+		err = fmt.Errorf("indexerImpl.onAddRawContent: %v", err)
+	} else if id < 0 {
+		err = fmt.Errorf("indexerImpl.onAddRawContent: invalid id %v "+
+			"extracted", id)
+	}
+	if err != nil {
+		i.errors = append(i.errors, err)
+		id = -1
+		content = ""
+	}
+
 	return
 }
 
-// Creates an IndexTokenizer
+// Implementation of IndexTokenizer.Finish
+func (i *indexerImpl) Finish() {
+	if i.inChan != nil {
+		i.inChan <- indexerInput{id: -1}
+	} else {
+		i.onFinish()
+	}
+}
+
+// Generates the final result:
+func (i *indexerImpl) onFinish() {
+	for term, postings := range i.terms {
+		result := IndexedTerm{
+			term:        term,
+			postings:    SortDedupPostings(postings),
+			occurrences: len(postings)}
+		i.results = append(i.results, result)
+	}
+	sort.Sort(i.results)
+	return
+}
+
+// Implementation of IndexTokenizer.Result
+func (i *indexerImpl) Result() (results IndexedTerms, errors []error) {
+	if i.outChan != nil {
+		<-i.outChan // Waits for termination.
+	}
+	errors = i.errors
+	results = i.results
+	return
+}
+
+// Creates an IndexTokenizer.
 func NewIndexer() Indexer {
 	i := new(indexerImpl)
 	i.tokenizer = NewTokenizer()
+	i.terms = make(map[string][]int)
+	return i
+}
+
+// Creates an IndexTokenizer that uses an internal go-routine for the heavy job.
+func NewConcurrentIndexer() Indexer {
 	inChan := make(chan indexerInput, 1000)
-	outChan := make(chan IndexedTerms, 1)
-	go func() {
-		i.terms = make(map[string][]int)
-		for command := range inChan {
-			id, content, err := command.extract()
-			if err != nil {
-				var results IndexedTerms
-				if err == io.EOF {
-					// Generates the final result:
-					for term, postings := range i.terms {
-						result := IndexedTerm{
-							term:        term,
-							postings:    SortDedupPostings(postings),
-							occurrences: len(postings)}
-						results = append(results, result)
-					}
-					sort.Sort(results)
-				}
-				outChan <- results
-				return // End of story.
-			} else {
-				// Indexes the content:
-				terms := i.tokenizer.Apply(content)
-				for _, term := range terms {
-					i.terms[term] = append(i.terms[term], id)
-				}
-			}
-		}
-	}() // go func
+	outChan := make(chan bool, 1)
+	i := new(indexerImpl)
+	i.tokenizer = NewTokenizer()
+	i.terms = make(map[string][]int)
+	go i.concurrentWorker(inChan, outChan)
 	i.inChan = inChan
 	i.outChan = outChan
 	return i
+}
+
+func (i *indexerImpl) concurrentWorker(
+	inChan chan indexerInput,
+	outChan chan bool) {
+
+	for command := range inChan {
+		if command.extractor != nil {
+			id, content := i.onAddRawContent(command.content, command.extractor)
+			if len(content) > 0 {
+				i.onAddContent(id, content)
+			}
+		} else if command.id >= 0 {
+			i.onAddContent(command.id, string(command.content))
+		} else {
+			i.onFinish()
+			outChan <- true
+			break // Done!
+		}
+	}
 }

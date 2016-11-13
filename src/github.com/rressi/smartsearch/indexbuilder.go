@@ -87,7 +87,11 @@ func NewIndexBuilder() IndexBuilder {
 
 	// Starts all the indexers:
 	n := runtime.NumCPU()
-	for i := 0; i < n; i++ {
+	if n > 1 {
+		for i := 0; i < n; i++ {
+			b.indexers = append(b.indexers, NewConcurrentIndexer())
+		}
+	} else {
 		b.indexers = append(b.indexers, NewIndexer())
 	}
 
@@ -215,6 +219,7 @@ func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
 	}
 
 	// If there is pending content takes it from the indexers:
+	var errors []error
 	if len(b.indexers) > 0 {
 
 		// Tells all the indexers to finish their job:
@@ -224,15 +229,25 @@ func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
 
 		// Collects terms from the indexers:
 		for i := range b.indexers {
-			var indexedTerms IndexedTerms
-			indexedTerms, err = b.indexers[i].Result()
-			if err != nil {
-				return
+			results, errors_ := b.indexers[i].Result()
+			b.trieBuilder.AddBulk(results)
+			if len(errors_) > 0 {
+				errors = append(errors, errors_...)
 			}
-			b.trieBuilder.AddBulk(indexedTerms)
 		}
 
 		b.indexers = nil // They are useless now.
+	}
+
+	numErrors := len(errors)
+	if numErrors > 0 {
+		if numErrors == 1 {
+			err = fmt.Errorf("IndexBuilder.Dump: %v", errors[0])
+		} else {
+			err = fmt.Errorf("IndexBuilder.Dump: %v errors occurred while "+
+				"indexing", numErrors)
+		}
+		return
 	}
 
 	// Generates our blob:
