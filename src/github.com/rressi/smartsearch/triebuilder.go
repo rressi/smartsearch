@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"runtime"
 	"sort"
+	"unicode/utf8"
 )
 
 // A TrieBuilder is a tool that can be used to generate binary encoded tries
@@ -35,6 +37,11 @@ type TrieBuilder interface {
 	Dump(dst io.Writer) error
 }
 
+// Creates a new TrieBuilder.
+func NewTrieBuilder() TrieBuilder {
+	return newTrieNode()
+}
+
 // A TrieBuilder's node used internally by its implementation.
 type trieNode struct {
 	edges            map[rune]*trieNode
@@ -54,12 +61,7 @@ func (t *trieNode) Add(posting int, term string) {
 	node := t
 	if len(term) > 0 {
 		for _, rune_ := range term {
-			childNode, ok := node.edges[rune_]
-			if !ok {
-				childNode = newTrieNode()
-				node.edges[rune_] = childNode
-			}
-			node = childNode
+			node = node.enterChild(rune_)
 		}
 	}
 	node.postings = append(node.postings, posting)
@@ -71,9 +73,9 @@ func (t *trieNode) AddBulk(data IndexedTerms) {
 
 	// We need to know how many runes we need to memoize while importing the
 	// data:
-	requiredRunes := 0
+	requiredRunes := 0 // one for the root node
 	for _, indexedTerm := range data {
-		if len(indexedTerm.term) > requiredRunes {
+		if requiredRunes < len(indexedTerm.term) {
 			requiredRunes = len(indexedTerm.term)
 		}
 	}
@@ -90,6 +92,10 @@ func (t *trieNode) AddBulk(data IndexedTerms) {
 	// For each term in a sorted order:
 	for _, indexedTerm := range data {
 
+		if len(indexedTerm.postings) == 0 {
+			continue
+		}
+
 		// Walks to the target node starting from the last node sharing the
 		// same prefix with last one previous:
 		node := t
@@ -100,12 +106,7 @@ func (t *trieNode) AddBulk(data IndexedTerms) {
 			} else {
 				currPosition = j // Prefix match stops here
 				runes[j] = rune_
-				var ok bool
-				node, ok = nodes[i].edges[rune_]
-				if !ok {
-					node = newTrieNode()
-					nodes[i].edges[rune_] = node
-				}
+				node = nodes[i].enterChild(rune_)
 				nodes[j] = node
 			}
 		}
@@ -122,9 +123,20 @@ func (t *trieNode) AddBulk(data IndexedTerms) {
 func (t *trieNode) Dump(dst io.Writer) error {
 	_, err := t.dumpRec(dst)
 	if err != nil {
-		fmt.Errorf("trieNode.Dump: %v", err)
+		err = fmt.Errorf("TrieBuilder.Dump: %v", err)
 	}
 	return err
+}
+
+// Returns child node given the related rune, if needed creates it.
+func (t *trieNode) enterChild(r rune) (childNode *trieNode) {
+	var ok bool
+	childNode, ok = t.edges[r]
+	if !ok {
+		childNode = newTrieNode()
+		t.edges[r] = childNode
+	}
+	return
 }
 
 // It recursively encodes one TrieBuilder's node.
@@ -282,7 +294,129 @@ func (t *trieNode) dumpPostings(dst io.Writer) (sz int, err error) {
 
 // -----------------------------------------------------------------------------
 
-// Creates a new TrieBuilder.
-func NewTrieBuilder() TrieBuilder {
-	return newTrieNode()
+type trieConcurrentSlave struct {
+	inChan  chan interface{}
+	outChan chan bool
+}
+
+type trieConcurrentAdd struct {
+	node    *trieNode
+	term    string
+	posting int
+}
+
+type trieConcurrentAddBulk struct {
+	node     *trieNode
+	term     string
+	postings []int
+}
+
+func newTrieConcurrentSlave() *trieConcurrentSlave {
+	slave := new(trieConcurrentSlave)
+	slave.inChan = make(chan interface{}, 100)
+	slave.outChan = make(chan bool, 1)
+	return slave
+}
+
+func (s *trieConcurrentSlave) Loop() {
+
+	for command := range s.inChan {
+		switch data := command.(type) {
+		case trieConcurrentAdd:
+			data.node.Add(data.posting, data.term)
+		case trieConcurrentAddBulk:
+			data.node.AddBulk(IndexedTerms{{
+				term:     data.term,
+				postings: data.postings}})
+		case bool:
+			s.outChan <- true
+			return
+		}
+	}
+}
+
+// -----------------------------------------------------------------------------
+
+type trieConcurrentMaster struct {
+	root   *trieNode
+	slaves []*trieConcurrentSlave
+}
+
+// Creates a new TrieBuilder that works concurrently:
+func NewConcurrentTrieBuilder() TrieBuilder {
+
+	numCores := runtime.NumCPU()
+	if numCores <= 1 {
+		return newTrieNode()
+	}
+
+	master := new(trieConcurrentMaster)
+	master.root = newTrieNode()
+
+	master.slaves = make([]*trieConcurrentSlave, numCores)
+	for i := 0; i < numCores; i++ {
+		slave := newTrieConcurrentSlave()
+		go slave.Loop()
+		master.slaves[i] = slave
+	}
+
+	return master
+}
+
+func (m *trieConcurrentMaster) Add(posting int, term string) {
+
+	// Void term goes to the root node that is not assigned to any slave:
+	if len(term) == 0 {
+		m.root.Add(posting, term)
+		return
+	}
+
+	// Takes the first rune and uses it to select one slave for this job;
+	rune_, sz := utf8.DecodeRuneInString(term)
+	k := int(rune_) % len(m.slaves)
+
+	// Passes this command to the slave:
+	m.slaves[k].inChan <- trieConcurrentAdd{
+		node:    m.root.enterChild(rune_),
+		posting: posting,
+		term:    term[sz:]}
+}
+
+func (m *trieConcurrentMaster) AddBulk(data IndexedTerms) {
+
+	for _, datum := range data {
+
+		if len(datum.postings) == 0 {
+			continue
+		}
+
+		// Void term goes to the root node that is not assigned to any slave:
+		if len(datum.term) == 0 {
+			m.root.AddBulk(IndexedTerms{datum})
+			continue
+		}
+
+		rune_, sz := utf8.DecodeRuneInString(datum.term)
+		k := int(rune_) % len(m.slaves)
+
+		m.slaves[k].inChan <- trieConcurrentAddBulk{
+			node:     m.root.enterChild(rune_),
+			postings: datum.postings,
+			term:     datum.term[sz:]}
+	}
+}
+
+func (m *trieConcurrentMaster) Dump(dst io.Writer) error {
+
+	// Signals all slave to terminate:
+	for _, slave := range m.slaves {
+		slave.inChan <- true
+	}
+
+	// Joins all slaves:
+	for _, slave := range m.slaves {
+		<-slave.outChan
+	}
+
+	return m.root.Dump(dst)
 }

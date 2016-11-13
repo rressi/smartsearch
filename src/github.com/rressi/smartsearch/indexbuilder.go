@@ -215,7 +215,7 @@ func (b *indexBuilderImpl) Dump(writer io.Writer) (err error) {
 
 	// We need a trie builder if not already built:
 	if b.trieBuilder == nil {
-		b.trieBuilder = NewTrieBuilder()
+		b.trieBuilder = NewConcurrentTrieBuilder()
 	}
 
 	// If there is pending content takes it from the indexers:
