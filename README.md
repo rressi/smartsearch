@@ -10,7 +10,7 @@ allow us to have many of them placed in a blob storage (a DB, some archive
  files etc.).
  
 You can give a look to demonstrative web application:
-- [smartsearch.cc](http://smartsearch.cc) with related code 
+- [smartsearch](http://ec2-35-161-193-215.us-west-2.compute.amazonaws.com/app/) with related code 
   [here](https://github.com/rressi/smartsearch-demo).
 
 
